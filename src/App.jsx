@@ -30,6 +30,7 @@ const TRANSLATIONS = {
         export: "Export",
         frankZone: "Frankierung",
         windowZone: "Sichtfenster",
+        returnLine: "Als Zeile über Empfänger",
         formats: {
             "DIN Lang (mit Fenster)": "DIN Lang (mit Fenster)",
             "DIN Lang (ohne Fenster)": "DIN Lang (ohne Fenster)",
@@ -57,6 +58,7 @@ const TRANSLATIONS = {
         export: "Export",
         frankZone: "Postage",
         windowZone: "Window",
+        returnLine: "As line above recipient",
         formats: {
             "DIN Lang (mit Fenster)": "DIN Lang (with Window)",
             "DIN Lang (ohne Fenster)": "DIN Lang (no Window)",
@@ -139,30 +141,27 @@ const AddressCard = ({
     maxWidth,
     maxHeight,
     t,
+    isSender,
 }) => {
+    const isDisabled = isSender && data.useAsReturnLine;
+
     const handleXChange = (e) => {
         let val = e.target.value;
         if (val === "") return setData({ ...data, x: "" });
-
         val = Number(val);
         if (val < 0) val = 0;
-
         const safeMax = Math.max(0, maxWidth - 40);
         if (val > safeMax) val = safeMax;
-
         setData({ ...data, x: val });
     };
 
     const handleYChange = (e) => {
         let val = e.target.value;
         if (val === "") return setData({ ...data, y: "" });
-
         val = Number(val);
         if (val < 0) val = 0;
-
         const safeMax = Math.max(0, maxHeight - 20);
         if (val > safeMax) val = safeMax;
-
         setData({ ...data, y: val });
     };
 
@@ -180,16 +179,19 @@ const AddressCard = ({
                 placeholder={t.placeholder}
             />
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div
+                className={`grid grid-cols-2 gap-4 mb-4 ${isDisabled ? "opacity-40 grayscale" : ""}`}
+            >
                 <div>
                     <label className="flex items-center gap-1 text-xs font-medium text-slate-500 mb-1">
                         <Move size={12} /> X (mm)
                     </label>
                     <input
+                        disabled={isDisabled}
                         type="number"
                         value={data.x}
                         onChange={handleXChange}
-                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed"
                     />
                 </div>
                 <div>
@@ -197,33 +199,35 @@ const AddressCard = ({
                         <Move size={12} className="rotate-90" /> Y (mm)
                     </label>
                     <input
+                        disabled={isDisabled}
                         type="number"
                         value={data.y}
                         onChange={handleYChange}
-                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed"
                     />
                 </div>
             </div>
 
             <div className="flex flex-col gap-3 pt-4 border-t border-slate-100">
-                <div className="flex items-center gap-2 w-full">
+                <div
+                    className={`flex items-center gap-2 w-full ${isDisabled ? "opacity-40 grayscale" : ""}`}
+                >
                     <Type size={14} className="text-slate-400 shrink-0" />
-
                     <select
+                        disabled={isDisabled}
                         value={data.fontFamily || "helvetica"}
                         onChange={(e) =>
                             setData({ ...data, fontFamily: e.target.value })
                         }
-                        className="flex-1 p-1.5 bg-white border border-slate-200 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                        className="flex-1 p-1.5 bg-white border border-slate-200 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed"
                     >
                         <option value="helvetica">Helvetica</option>
                         <option value="times">Times (Serif)</option>
                         <option value="courier">Courier (Mono)</option>
                     </select>
-
                     <div className="flex items-center gap-1">
-                        {/* NEU: w-[72px] statt w-12 für ca. 50% mehr Breite */}
                         <input
+                            disabled={isDisabled}
                             type="number"
                             value={data.fontSize}
                             onChange={(e) =>
@@ -232,15 +236,20 @@ const AddressCard = ({
                                     fontSize: Number(e.target.value),
                                 })
                             }
-                            className="w-[72px] p-1.5 text-center border border-slate-200 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-[72px] p-1.5 text-center border border-slate-200 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50"
                         />
                         <span className="text-xs text-slate-500">pt</span>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+                <div
+                    className={`flex items-center gap-4 ${isDisabled ? "opacity-40 grayscale" : ""}`}
+                >
+                    <label
+                        className={`flex items-center gap-1.5 text-sm select-none ${isDisabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+                    >
                         <input
+                            disabled={isDisabled}
                             type="checkbox"
                             checked={data.isBold}
                             onChange={(e) =>
@@ -252,8 +261,11 @@ const AddressCard = ({
                             {t.bold}
                         </span>
                     </label>
-                    <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+                    <label
+                        className={`flex items-center gap-1.5 text-sm select-none ${isDisabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+                    >
                         <input
+                            disabled={isDisabled}
                             type="checkbox"
                             checked={data.isItalic}
                             onChange={(e) =>
@@ -266,6 +278,27 @@ const AddressCard = ({
                         </span>
                     </label>
                 </div>
+
+                {isSender && (
+                    <div className="pt-2 mt-1 border-t border-slate-100">
+                        <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={data.useAsReturnLine || false}
+                                onChange={(e) =>
+                                    setData({
+                                        ...data,
+                                        useAsReturnLine: e.target.checked,
+                                    })
+                                }
+                                className="rounded border-slate-300 text-blue-500 focus:ring-blue-500"
+                            />
+                            <span className="text-slate-700 font-medium">
+                                {t.returnLine}
+                            </span>
+                        </label>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -278,10 +311,9 @@ const getPreviewFontFamily = (font) => {
 };
 
 export default function App() {
-    const [lang, setLang] = useState(() => {
-        return localStorage.getItem("envelopeLang") || "de";
-    });
-
+    const [lang, setLang] = useState(
+        () => localStorage.getItem("envelopeLang") || "de",
+    );
     const t = TRANSLATIONS[lang];
 
     const [format, setFormat] = useState(() => {
@@ -302,7 +334,11 @@ export default function App() {
         if (savedSender) {
             const parsed = JSON.parse(savedSender);
             if (parsed.text.includes("Max Mustermann")) parsed.text = "";
-            return { fontFamily: "helvetica", ...parsed };
+            return {
+                fontFamily: "helvetica",
+                useAsReturnLine: false,
+                ...parsed,
+            };
         }
         return {
             text: "",
@@ -312,6 +348,7 @@ export default function App() {
             isBold: false,
             isItalic: false,
             fontFamily: "helvetica",
+            useAsReturnLine: false,
         };
     });
 
@@ -419,6 +456,13 @@ export default function App() {
         return "normal";
     };
 
+    const getSingleLineSender = () => {
+        return sender.text
+            .split("\n")
+            .filter((line) => line.trim() !== "")
+            .join(" • ");
+    };
+
     const createPDF = () => {
         const doc = new jsPDF({
             orientation: isLandscape ? "landscape" : "portrait",
@@ -426,7 +470,7 @@ export default function App() {
             format: [baseDims.width, baseDims.height],
         });
 
-        if (sender.text) {
+        if (sender.text && !sender.useAsReturnLine) {
             doc.setFontSize(sender.fontSize);
             doc.setFont(
                 sender.fontFamily || "helvetica",
@@ -440,18 +484,25 @@ export default function App() {
         }
 
         if (recipient.text) {
+            const rx = Number(recipient.x) || 0;
+            const ry = Number(recipient.y) || 0;
             doc.setFontSize(recipient.fontSize);
             doc.setFont(
                 recipient.fontFamily || "helvetica",
                 getFontStyle(recipient.isBold, recipient.isItalic),
             );
-            doc.text(
-                recipient.text.split("\n"),
-                Number(recipient.x) || 0,
-                Number(recipient.y) || 0,
-            );
-        }
+            doc.text(recipient.text.split("\n"), rx, ry);
 
+            if (sender.useAsReturnLine && sender.text) {
+                doc.setFontSize(8);
+                doc.setFont(recipient.fontFamily || "helvetica", "normal");
+                const returnLineText = getSingleLineSender();
+                doc.text(returnLineText, rx, ry - 4);
+                const textWidth = doc.getTextWidth(returnLineText);
+                doc.setLineWidth(0.1);
+                doc.line(rx, ry - 3.5, rx + textWidth, ry - 3.5);
+            }
+        }
         return doc;
     };
 
@@ -474,13 +525,11 @@ export default function App() {
         }));
     };
 
-    const toggleLanguage = () => {
+    const toggleLanguage = () =>
         setLang((prev) => (prev === "de" ? "en" : "de"));
-    };
 
     return (
         <div className="flex h-screen bg-slate-100 font-sans overflow-hidden">
-            {/* SEITENLEISTE */}
             <div className="w-[400px] bg-slate-50 flex flex-col h-full border-r border-slate-200 z-10 shadow-lg shrink-0">
                 <div className="p-6 bg-white border-b border-slate-200 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -496,17 +545,15 @@ export default function App() {
                             </p>
                         </div>
                     </div>
-
                     <button
                         onClick={toggleLanguage}
                         className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 px-2.5 py-1.5 rounded-md transition-colors border border-slate-200"
-                        title="Sprache wechseln / Change Language"
+                        title="Sprache wechseln"
                     >
                         <Globe size={14} />
                         {lang === "de" ? "EN" : "DE"}
                     </button>
                 </div>
-
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                         <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
@@ -525,7 +572,6 @@ export default function App() {
                                 </option>
                             ))}
                         </select>
-
                         <div className="flex bg-slate-100 p-1 rounded-lg">
                             <button
                                 onClick={() => setIsLandscape(true)}
@@ -541,7 +587,6 @@ export default function App() {
                             </button>
                         </div>
                     </div>
-
                     <AddressCard
                         title={t.sender}
                         icon={User}
@@ -550,6 +595,7 @@ export default function App() {
                         maxWidth={currentDims.width}
                         maxHeight={currentDims.height}
                         t={t}
+                        isSender={true}
                     />
                     <AddressCard
                         title={t.recipient}
@@ -559,9 +605,9 @@ export default function App() {
                         maxWidth={currentDims.width}
                         maxHeight={currentDims.height}
                         t={t}
+                        isSender={false}
                     />
                 </div>
-
                 <div className="p-6 bg-white border-t border-slate-200 flex gap-3">
                     <button
                         onClick={handlePrint}
@@ -579,8 +625,6 @@ export default function App() {
                     </button>
                 </div>
             </div>
-
-            {/* HAUPTBEREICH (Vorschau) */}
             <div className="flex-1 bg-grid-pattern overflow-auto relative flex items-center justify-center p-12">
                 <div
                     className="relative bg-white shadow-2xl transition-all duration-300 ease-in-out border border-slate-200"
@@ -598,7 +642,6 @@ export default function App() {
                     >
                         {t.frankZone}
                     </div>
-
                     {currentDims.window && (
                         <div
                             className="absolute bg-slate-100/50 border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-sm font-bold pointer-events-none select-none rounded-sm"
@@ -612,37 +655,39 @@ export default function App() {
                             {t.windowZone}
                         </div>
                     )}
-
-                    <Draggable
-                        nodeRef={senderRef}
-                        bounds="parent"
-                        position={{
-                            x: (Number(sender.x) || 0) * SCALE,
-                            y: (Number(sender.y) || 0) * SCALE,
-                        }}
-                        onDrag={(e, data) => handleDrag(e, data, setSender)}
-                    >
-                        <div
-                            ref={senderRef}
-                            className="absolute cursor-move text-slate-600 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 hover:shadow-sm rounded transition-colors group z-10"
-                            style={{
-                                fontSize: `${sender.fontSize * PT_TO_PX}px`,
-                                fontWeight: sender.isBold ? "bold" : "normal",
-                                fontStyle: sender.isItalic
-                                    ? "italic"
-                                    : "normal",
-                                fontFamily: getPreviewFontFamily(
-                                    sender.fontFamily,
-                                ),
+                    {!sender.useAsReturnLine && (
+                        <Draggable
+                            bounds="parent"
+                            nodeRef={senderRef}
+                            position={{
+                                x: (Number(sender.x) || 0) * SCALE,
+                                y: (Number(sender.y) || 0) * SCALE,
                             }}
+                            onDrag={(e, data) => handleDrag(e, data, setSender)}
                         >
-                            {sender.text || " "}
-                        </div>
-                    </Draggable>
-
+                            <div
+                                ref={senderRef}
+                                className="absolute cursor-move text-slate-600 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 hover:shadow-sm rounded transition-colors group z-10"
+                                style={{
+                                    fontSize: `${sender.fontSize * PT_TO_PX}px`,
+                                    fontWeight: sender.isBold
+                                        ? "bold"
+                                        : "normal",
+                                    fontStyle: sender.isItalic
+                                        ? "italic"
+                                        : "normal",
+                                    fontFamily: getPreviewFontFamily(
+                                        sender.fontFamily,
+                                    ),
+                                }}
+                            >
+                                {sender.text || " "}
+                            </div>
+                        </Draggable>
+                    )}
                     <Draggable
-                        nodeRef={recipientRef}
                         bounds="parent"
+                        nodeRef={recipientRef}
                         position={{
                             x: (Number(recipient.x) || 0) * SCALE,
                             y: (Number(recipient.y) || 0) * SCALE,
@@ -653,7 +698,6 @@ export default function App() {
                             ref={recipientRef}
                             className="absolute cursor-move text-slate-900 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 hover:shadow-sm rounded transition-colors z-10"
                             style={{
-                                fontSize: `${recipient.fontSize * PT_TO_PX}px`,
                                 fontWeight: recipient.isBold
                                     ? "bold"
                                     : "normal",
@@ -665,7 +709,28 @@ export default function App() {
                                 ),
                             }}
                         >
-                            {recipient.text || " "}
+                            {sender.useAsReturnLine && sender.text && (
+                                <div
+                                    style={{
+                                        fontSize: `${8 * PT_TO_PX}px`,
+                                        fontWeight: "normal",
+                                        fontStyle: "normal",
+                                        marginBottom: `${2 * SCALE}px`,
+                                        borderBottom: "1px solid currentColor",
+                                        display: "inline-block",
+                                        whiteSpace: "nowrap",
+                                    }}
+                                >
+                                    {getSingleLineSender()}
+                                </div>
+                            )}
+                            <div
+                                style={{
+                                    fontSize: `${recipient.fontSize * PT_TO_PX}px`,
+                                }}
+                            >
+                                {recipient.text || " "}
+                            </div>
                         </div>
                     </Draggable>
                 </div>
