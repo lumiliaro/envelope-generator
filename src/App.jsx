@@ -138,7 +138,7 @@ const FORMATS = {
 
 const PT_TO_MM = 25.4 / 72;
 
-// NEU: Intelligente Limitierungs-Funktion, berechnet den Platzbedarf des Textes
+// Schätzt ab, wie viel Platz der Text auf dem Umschlag verbraucht, und drückt ihn bei Bedarf zurück
 const clampCoordinate = (val, text, fontSize, maxW, maxH, isX) => {
     if (val === "" || val === null || val === undefined) return "";
     let num = Number(val);
@@ -146,15 +146,15 @@ const clampCoordinate = (val, text, fontSize, maxW, maxH, isX) => {
 
     const safeText = text || " ";
     if (isX) {
-        // Schätzt die Breite anhand der längsten Zeile (Faktor 0.2 pt->mm)
+        // Längste Zeile finden, um die Breite zu schätzen
         const maxChars = Math.max(...safeText.split("\n").map((l) => l.length));
-        const approxWidth = maxChars * fontSize * 0.2;
-        const safeMaxX = Math.max(0, maxW - approxWidth - 5); // 5mm Sicherheitspuffer
+        const approxWidth = maxChars * fontSize * 0.22; // 0.22mm pro pt ist ein sicherer Faktor
+        const safeMaxX = Math.max(0, maxW - approxWidth - 5); // 5mm Randpuffer
         if (num > safeMaxX) num = Math.floor(safeMaxX);
     } else {
-        // Schätzt die Höhe anhand der Zeilenanzahl (Faktor 0.45 pt->mm ink. Zeilenabstand)
+        // Anzahl der Zeilen zählen, um die Höhe zu schätzen
         const linesCount = safeText.split("\n").length;
-        const approxHeight = linesCount * fontSize * 0.45;
+        const approxHeight = linesCount * fontSize * 0.45; // 0.45mm pro pt inkl. Zeilenabstand
         const safeMaxY = Math.max(0, maxH - approxHeight - 5);
         if (num > safeMaxY) num = Math.floor(safeMaxY);
     }
@@ -181,7 +181,27 @@ const AddressCard = ({
             </div>
             <textarea
                 value={data.text}
-                onChange={(e) => setData({ ...data, text: e.target.value })}
+                onChange={(e) => {
+                    const newText = e.target.value;
+                    // Sofortige Korrektur der X/Y Achse, falls der neue Text zu lang ist
+                    const newX = clampCoordinate(
+                        data.x,
+                        newText,
+                        data.fontSize,
+                        maxWidth,
+                        maxHeight,
+                        true,
+                    );
+                    const newY = clampCoordinate(
+                        data.y,
+                        newText,
+                        data.fontSize,
+                        maxWidth,
+                        maxHeight,
+                        false,
+                    );
+                    setData({ ...data, text: newText, x: newX, y: newY });
+                }}
                 className="w-full h-32 p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none mb-4"
                 placeholder={t.placeholder}
             />
@@ -197,7 +217,6 @@ const AddressCard = ({
                         type="number"
                         value={data.x}
                         onChange={(e) => {
-                            // Berechnete X-Limitierung nutzen
                             const val = clampCoordinate(
                                 e.target.value,
                                 data.text,
@@ -220,7 +239,6 @@ const AddressCard = ({
                         type="number"
                         value={data.y}
                         onChange={(e) => {
-                            // Berechnete Y-Limitierung nutzen
                             const val = clampCoordinate(
                                 e.target.value,
                                 data.text,
@@ -257,12 +275,32 @@ const AddressCard = ({
                             disabled={isDisabled}
                             type="number"
                             value={data.fontSize}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                                const newFontSize = Number(e.target.value);
+                                // Auch hier korrigieren: Größere Schrift = mehr Platzbedarf
+                                const newX = clampCoordinate(
+                                    data.x,
+                                    data.text,
+                                    newFontSize,
+                                    maxWidth,
+                                    maxHeight,
+                                    true,
+                                );
+                                const newY = clampCoordinate(
+                                    data.y,
+                                    data.text,
+                                    newFontSize,
+                                    maxWidth,
+                                    maxHeight,
+                                    false,
+                                );
                                 setData({
                                     ...data,
-                                    fontSize: Number(e.target.value),
-                                })
-                            }
+                                    fontSize: newFontSize,
+                                    x: newX,
+                                    y: newY,
+                                });
+                            }}
                             className="w-[72px] p-1.5 text-center border border-slate-200 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50"
                         />
                         <span className="text-xs text-slate-500">pt</span>
@@ -450,7 +488,7 @@ export default function App() {
         stamp: baseDims.stamp,
     };
 
-    // Stellt sicher, dass bei Formatwechsel die Werte nicht im luftleeren Raum landen
+    // Stellt sicher, dass bei Formatwechsel die Werte im Umschlag bleiben
     useEffect(() => {
         const checkBounds = (prev) => {
             const newX = clampCoordinate(
