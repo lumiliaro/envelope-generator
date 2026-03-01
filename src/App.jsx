@@ -11,6 +11,7 @@ import {
     Printer,
     RotateCcw,
     Settings,
+    ShieldCheck,
     Stamp,
     Type,
     User,
@@ -37,7 +38,9 @@ const TRANSLATIONS = {
         windowZone: "Sichtfenster",
         returnLine: "Als Zeile über Empfänger",
         reset: "Reset",
-        dragHint: "Adressen zum Verschieben ziehen", // Neu
+        dragHint: "Adressen zum Verschieben ziehen",
+        privacyNote:
+            "Datenschutz: Keine Server-Speicherung. Daten verbleiben lokal in Ihrem Browser.", // Neu
         formats: {
             "DIN Lang (mit Fenster)": "DIN Lang (mit Fenster)",
             "DIN Lang (ohne Fenster)": "DIN Lang (ohne Fenster)",
@@ -47,7 +50,7 @@ const TRANSLATIONS = {
             "B4 (Großformat)": "B4 (Großformat)",
             "B5 (Zwischenformat)": "B5 (Zwischenformat)",
             "Quadratisch (155 x 155)": "Quadratisch (155 x 155)",
-            "Quadratisch Groß (220 x 220)": "Quadratisch Groß (220 x 220)",
+            "Quadratisch Groß (220 x 220)": "Large Square (220 x 220)",
         },
     },
     en: {
@@ -67,7 +70,9 @@ const TRANSLATIONS = {
         windowZone: "Window",
         returnLine: "As line above recipient",
         reset: "Reset",
-        dragHint: "Drag addresses to reposition", // Neu
+        dragHint: "Drag addresses to reposition",
+        privacyNote:
+            "Privacy: No server storage. All data stays local in your browser.", // Neu
         formats: {
             "DIN Lang (mit Fenster)": "DIN Lang (with Window)",
             "DIN Lang (ohne Fenster)": "DIN Lang (no Window)",
@@ -141,16 +146,7 @@ const FORMATS = {
 
 const PT_TO_MM = 25.4 / 72;
 
-const AddressCard = ({
-    title,
-    icon: Icon,
-    data,
-    setData,
-    maxWidth,
-    maxHeight,
-    t,
-    isSender,
-}) => {
+const AddressCard = ({ title, icon: Icon, data, setData, t, isSender }) => {
     const isDisabled = isSender && data.useAsReturnLine;
 
     return (
@@ -305,14 +301,11 @@ export default function App() {
     const [zoom, setZoom] = useState(
         () => Number(localStorage.getItem("envelopeZoom")) || 3,
     );
-    const [showDragHint, setShowDragHint] = useState(true); // Neu für den Hinweis
+    const [showDragHint, setShowDragHint] = useState(true);
 
     const [format, setFormat] = useState(() => {
-        const savedFormat = localStorage.getItem("envelopeFormat");
-        const parsed = savedFormat
-            ? JSON.parse(savedFormat)
-            : "DIN Lang (ohne Fenster)";
-        return FORMATS[parsed] ? parsed : "DIN Lang (ohne Fenster)";
+        const saved = localStorage.getItem("envelopeFormat");
+        return saved ? JSON.parse(saved) : "DIN Lang (ohne Fenster)";
     });
 
     const [isLandscape, setIsLandscape] = useState(() => {
@@ -320,79 +313,50 @@ export default function App() {
         return saved !== null ? JSON.parse(saved) : true;
     });
 
-    const [sender, setSender] = useState(() => {
-        const savedSender = localStorage.getItem("envelopeSender");
-        if (savedSender) {
-            const parsed = JSON.parse(savedSender);
-            return {
-                fontFamily: "helvetica",
-                useAsReturnLine: false,
-                ...parsed,
-            };
-        }
-        return {
-            text: "",
-            x: 10,
-            y: 10,
-            fontSize: 10,
-            isBold: false,
-            isItalic: false,
-            fontFamily: "helvetica",
-            useAsReturnLine: false,
-        };
-    });
+    const [sender, setSender] = useState(() => ({
+        text: "",
+        x: 10,
+        y: 10,
+        fontSize: 10,
+        isBold: false,
+        isItalic: false,
+        fontFamily: "helvetica",
+        useAsReturnLine: false,
+        ...JSON.parse(localStorage.getItem("envelopeSender") || "{}"),
+    }));
 
-    const [recipient, setRecipient] = useState(() => {
-        const savedRecipient = localStorage.getItem(
-            "envelopeRecipientSettings",
-        );
-        if (savedRecipient) {
-            const parsed = JSON.parse(savedRecipient);
-            return { fontFamily: "helvetica", ...parsed, text: "" };
-        }
-        return {
-            text: "",
-            x: 120,
-            y: 55,
-            fontSize: 12,
-            isBold: true,
-            isItalic: false,
-            fontFamily: "helvetica",
-        };
-    });
+    const [recipient, setRecipient] = useState(() => ({
+        text: "",
+        x: 120,
+        y: 55,
+        fontSize: 12,
+        isBold: true,
+        isItalic: false,
+        fontFamily: "helvetica",
+        ...JSON.parse(
+            localStorage.getItem("envelopeRecipientSettings") || "{}",
+        ),
+    }));
 
     useEffect(() => {
-        // Hinweis nach 5 Sekunden ausblenden
         const timer = setTimeout(() => setShowDragHint(false), 5000);
         return () => clearTimeout(timer);
     }, []);
 
-    useEffect(() => localStorage.setItem("envelopeLang", lang), [lang]);
-    useEffect(() => localStorage.setItem("envelopeZoom", zoom), [zoom]);
-    useEffect(
-        () => localStorage.setItem("envelopeFormat", JSON.stringify(format)),
-        [format],
-    );
-    useEffect(
-        () =>
-            localStorage.setItem(
-                "envelopeOrientation",
-                JSON.stringify(isLandscape),
-            ),
-        [isLandscape],
-    );
-    useEffect(
-        () => localStorage.setItem("envelopeSender", JSON.stringify(sender)),
-        [sender],
-    );
-    useEffect(
-        () =>
-            localStorage.setItem(
-                "envelopeRecipientSettings",
-                JSON.stringify(recipient),
-            ),
-        [recipient],
-    );
+    useEffect(() => {
+        localStorage.setItem("envelopeLang", lang);
+        localStorage.setItem("envelopeZoom", zoom);
+        localStorage.setItem("envelopeFormat", JSON.stringify(format));
+        localStorage.setItem(
+            "envelopeOrientation",
+            JSON.stringify(isLandscape),
+        );
+        localStorage.setItem("envelopeSender", JSON.stringify(sender));
+        localStorage.setItem(
+            "envelopeRecipientSettings",
+            JSON.stringify(recipient),
+        );
+    }, [lang, zoom, format, isLandscape, sender, recipient]);
 
     const senderRef = useRef(null);
     const recipientRef = useRef(null);
@@ -416,28 +380,8 @@ export default function App() {
         stamp: baseDims.stamp,
     };
 
-    const handleReset = () => {
-        if (
-            window.confirm(
-                lang === "de"
-                    ? "Alle Einstellungen wirklich zurücksetzen?"
-                    : "Really reset all settings?",
-            )
-        ) {
-            localStorage.clear();
-            window.location.reload();
-        }
-    };
-
-    const handleZoom = (delta) => {
-        setZoom(
-            (prev) =>
-                Math.round(Math.max(1, Math.min(6, prev + delta)) * 10) / 10,
-        );
-    };
-
     const handleDragStop = (e, data, setter) => {
-        setShowDragHint(false); // Beim ersten Bewegen Hinweis sofort ausblenden
+        setShowDragHint(false);
         setter((prev) => ({
             ...prev,
             x: Math.round(data.x / zoom),
@@ -457,7 +401,7 @@ export default function App() {
             unit: "mm",
             format: [baseDims.width, baseDims.height],
         });
-        const getStyle = (obj) =>
+        const style = (obj) =>
             obj.isBold && obj.isItalic
                 ? "bolditalic"
                 : obj.isBold
@@ -465,28 +409,28 @@ export default function App() {
                   : obj.isItalic
                     ? "italic"
                     : "normal";
+
         if (sender.text && !sender.useAsReturnLine) {
             doc.setFontSize(sender.fontSize);
-            doc.setFont(sender.fontFamily, getStyle(sender));
-            doc.text(
-                sender.text.split("\n"),
-                Number(sender.x) || 0,
-                Number(sender.y) || 0,
-            );
+            doc.setFont(sender.fontFamily, style(sender));
+            doc.text(sender.text.split("\n"), sender.x, sender.y);
         }
         if (recipient.text) {
-            const rx = Number(recipient.x) || 0,
-                ry = Number(recipient.y) || 0;
             doc.setFontSize(recipient.fontSize);
-            doc.setFont(recipient.fontFamily, getStyle(recipient));
-            doc.text(recipient.text.split("\n"), rx, ry);
+            doc.setFont(recipient.fontFamily, style(recipient));
+            doc.text(recipient.text.split("\n"), recipient.x, recipient.y);
             if (sender.useAsReturnLine && sender.text) {
                 doc.setFontSize(8);
                 doc.setFont(recipient.fontFamily, "normal");
                 const line = getSingleLineSender();
-                doc.text(line, rx, ry - 4);
+                doc.text(line, recipient.x, recipient.y - 4);
                 doc.setLineWidth(0.1);
-                doc.line(rx, ry - 3.5, rx + doc.getTextWidth(line), ry - 3.5);
+                doc.line(
+                    recipient.x,
+                    recipient.y - 3.5,
+                    recipient.x + doc.getTextWidth(line),
+                    recipient.y - 3.5,
+                );
             }
         }
         return doc;
@@ -504,16 +448,23 @@ export default function App() {
                             <h1 className="font-bold text-lg text-slate-800 shrink-0">
                                 {t.appTitle}
                             </h1>
-                            <p className="text-xs text-slate-500">
-                                {t.appSubtitle}
-                            </p>
                         </div>
                     </div>
                     <div className="flex gap-2">
                         <button
-                            onClick={handleReset}
-                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                            title={t.reset}
+                            onClick={() => {
+                                if (
+                                    window.confirm(
+                                        lang === "de"
+                                            ? "Zurücksetzen?"
+                                            : "Reset?",
+                                    )
+                                ) {
+                                    localStorage.clear();
+                                    window.location.reload();
+                                }
+                            }}
+                            className="p-2 text-slate-400 hover:text-red-500 rounded-md transition-colors"
                         >
                             <RotateCcw size={18} />
                         </button>
@@ -539,21 +490,20 @@ export default function App() {
                         >
                             {Object.keys(FORMATS).map((key) => (
                                 <option key={key} value={key}>
-                                    {t.formats[key]} ({FORMATS[key].width} ×{" "}
-                                    {FORMATS[key].height} mm)
+                                    {t.formats[key]}
                                 </option>
                             ))}
                         </select>
                         <div className="flex bg-slate-100 p-1 rounded-lg">
                             <button
                                 onClick={() => setIsLandscape(true)}
-                                className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${isLandscape ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700"}`}
+                                className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${isLandscape ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}
                             >
                                 {t.landscape}
                             </button>
                             <button
                                 onClick={() => setIsLandscape(false)}
-                                className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${!isLandscape ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700"}`}
+                                className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${!isLandscape ? "bg-white shadow-sm text-slate-800" : "text-slate-500"}`}
                             >
                                 {t.portrait}
                             </button>
@@ -575,6 +525,17 @@ export default function App() {
                         t={t}
                         isSender={false}
                     />
+
+                    {/* DATENSCHUTZ HINWEIS IN DER SEITENLEISTE */}
+                    <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl flex gap-3 items-start">
+                        <ShieldCheck
+                            className="text-blue-500 shrink-0 mt-0.5"
+                            size={16}
+                        />
+                        <p className="text-[11px] leading-relaxed text-slate-500 italic">
+                            {t.privacyNote}
+                        </p>
+                    </div>
                 </div>
                 <div className="p-6 bg-white border-t border-slate-200 space-y-4">
                     <div className="flex gap-3">
@@ -605,7 +566,6 @@ export default function App() {
             </div>
 
             <div className="flex-1 bg-grid-pattern overflow-auto relative flex items-center justify-center p-12">
-                {/* Pulsierender Hinweis */}
                 {showDragHint && (
                     <div className="absolute top-10 left-1/2 -translate-x-1/2 z-[60] animate-bounce pointer-events-none">
                         <div className="bg-blue-600 text-white px-4 py-2 rounded-full shadow-2xl flex items-center gap-2 text-sm font-bold border-2 border-white/50">
@@ -616,14 +576,13 @@ export default function App() {
 
                 <div className="absolute bottom-8 right-8 flex items-center gap-2 bg-white/80 backdrop-blur-md p-2 rounded-2xl border border-white/50 shadow-2xl z-50">
                     <button
-                        onClick={() => handleZoom(-0.5)}
+                        onClick={() => setZoom((z) => Math.max(1, z - 0.5))}
                         className="p-2 text-slate-600 hover:bg-blue-600 hover:text-white rounded-xl transition-all active:scale-90"
-                        title="Zoom Out"
                     >
                         <Minus size={18} strokeWidth={3} />
                     </button>
                     <div className="w-20 text-center border-x border-slate-200 px-2">
-                        <div className="text-[10px] uppercase font-bold text-slate-400 tracking-tighter leading-none mb-1">
+                        <div className="text-[10px] uppercase font-bold text-slate-400 leading-none mb-1">
                             Zoom
                         </div>
                         <div className="text-sm font-black text-slate-800 leading-none">
@@ -631,9 +590,8 @@ export default function App() {
                         </div>
                     </div>
                     <button
-                        onClick={() => handleZoom(0.5)}
+                        onClick={() => setZoom((z) => Math.min(6, z + 0.5))}
                         className="p-2 text-slate-600 hover:bg-blue-600 hover:text-white rounded-xl transition-all active:scale-90"
-                        title="Zoom In"
                     >
                         <Plus size={18} strokeWidth={3} />
                     </button>
@@ -681,12 +639,13 @@ export default function App() {
                             bounds="parent"
                             nodeRef={senderRef}
                             position={{
-                                x: (Number(sender.x) || 0) * zoom,
-                                y: (Number(sender.y) || 0) * zoom,
+                                x: sender.x * zoom,
+                                y: sender.y * zoom,
                             }}
                             onStop={(e, data) =>
                                 handleDragStop(e, data, setSender)
                             }
+                            scale={zoom}
                         >
                             <div
                                 ref={senderRef}
@@ -713,12 +672,13 @@ export default function App() {
                         bounds="parent"
                         nodeRef={recipientRef}
                         position={{
-                            x: (Number(recipient.x) || 0) * zoom,
-                            y: (Number(recipient.y) || 0) * zoom,
+                            x: recipient.x * zoom,
+                            y: recipient.y * zoom,
                         }}
                         onStop={(e, data) =>
                             handleDragStop(e, data, setRecipient)
                         }
+                        scale={zoom}
                     >
                         <div
                             ref={recipientRef}
