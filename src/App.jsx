@@ -2,7 +2,6 @@ import { jsPDF } from "jspdf";
 import {
     Download,
     Globe,
-    Hand,
     Mail,
     MapPin,
     Minus,
@@ -10,8 +9,7 @@ import {
     Plus,
     Printer,
     RotateCcw,
-    Settings, // Für den Hinweis
-    ShieldCheck,
+    Settings,
     Stamp,
     Type,
     User,
@@ -38,9 +36,6 @@ const TRANSLATIONS = {
         windowZone: "Sichtfenster",
         returnLine: "Als Zeile über Empfänger",
         reset: "Reset",
-        dragHint: "Adressen zum Verschieben ziehen",
-        privacyNote:
-            "Datenschutz: Keine Server-Speicherung. Daten verbleiben lokal in Ihrem Browser.",
         formats: {
             "DIN Lang (mit Fenster)": "DIN Lang (mit Fenster)",
             "DIN Lang (ohne Fenster)": "DIN Lang (ohne Fenster)",
@@ -70,9 +65,6 @@ const TRANSLATIONS = {
         windowZone: "Window",
         returnLine: "As line above recipient",
         reset: "Reset",
-        dragHint: "Drag addresses to reposition",
-        privacyNote:
-            "Privacy: No server storage. All data stays local in your browser.",
         formats: {
             "DIN Lang (mit Fenster)": "DIN Lang (with Window)",
             "DIN Lang (ohne Fenster)": "DIN Lang (no Window)",
@@ -146,7 +138,39 @@ const FORMATS = {
 
 const PT_TO_MM = 25.4 / 72;
 
-const AddressCard = ({ title, icon: Icon, data, setData, t, isSender }) => {
+// NEU: Intelligente Limitierungs-Funktion, berechnet den Platzbedarf des Textes
+const clampCoordinate = (val, text, fontSize, maxW, maxH, isX) => {
+    if (val === "" || val === null || val === undefined) return "";
+    let num = Number(val);
+    if (num < 0) num = 0;
+
+    const safeText = text || " ";
+    if (isX) {
+        // Schätzt die Breite anhand der längsten Zeile (Faktor 0.2 pt->mm)
+        const maxChars = Math.max(...safeText.split("\n").map((l) => l.length));
+        const approxWidth = maxChars * fontSize * 0.2;
+        const safeMaxX = Math.max(0, maxW - approxWidth - 5); // 5mm Sicherheitspuffer
+        if (num > safeMaxX) num = Math.floor(safeMaxX);
+    } else {
+        // Schätzt die Höhe anhand der Zeilenanzahl (Faktor 0.45 pt->mm ink. Zeilenabstand)
+        const linesCount = safeText.split("\n").length;
+        const approxHeight = linesCount * fontSize * 0.45;
+        const safeMaxY = Math.max(0, maxH - approxHeight - 5);
+        if (num > safeMaxY) num = Math.floor(safeMaxY);
+    }
+    return num;
+};
+
+const AddressCard = ({
+    title,
+    icon: Icon,
+    data,
+    setData,
+    maxWidth,
+    maxHeight,
+    t,
+    isSender,
+}) => {
     const isDisabled = isSender && data.useAsReturnLine;
 
     return (
@@ -172,9 +196,18 @@ const AddressCard = ({ title, icon: Icon, data, setData, t, isSender }) => {
                         disabled={isDisabled}
                         type="number"
                         value={data.x}
-                        onChange={(e) =>
-                            setData({ ...data, x: Number(e.target.value) })
-                        }
+                        onChange={(e) => {
+                            // Berechnete X-Limitierung nutzen
+                            const val = clampCoordinate(
+                                e.target.value,
+                                data.text,
+                                data.fontSize,
+                                maxWidth,
+                                maxHeight,
+                                true,
+                            );
+                            setData({ ...data, x: val });
+                        }}
                         className="w-full p-2 bg-slate-50 border border-slate-200 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed"
                     />
                 </div>
@@ -186,9 +219,18 @@ const AddressCard = ({ title, icon: Icon, data, setData, t, isSender }) => {
                         disabled={isDisabled}
                         type="number"
                         value={data.y}
-                        onChange={(e) =>
-                            setData({ ...data, y: Number(e.target.value) })
-                        }
+                        onChange={(e) => {
+                            // Berechnete Y-Limitierung nutzen
+                            const val = clampCoordinate(
+                                e.target.value,
+                                data.text,
+                                data.fontSize,
+                                maxWidth,
+                                maxHeight,
+                                false,
+                            );
+                            setData({ ...data, y: val });
+                        }}
                         className="w-full p-2 bg-slate-50 border border-slate-200 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed"
                     />
                 </div>
@@ -298,10 +340,11 @@ export default function App() {
         () => localStorage.getItem("envelopeLang") || "de",
     );
     const t = TRANSLATIONS[lang];
-    const [zoom, setZoom] = useState(
-        () => Number(localStorage.getItem("envelopeZoom")) || 3,
-    );
-    const [showDragHint, setShowDragHint] = useState(true);
+
+    const [zoom, setZoom] = useState(() => {
+        const savedZoom = localStorage.getItem("envelopeZoom");
+        return savedZoom ? Number(savedZoom) : 3;
+    });
 
     const [format, setFormat] = useState(() => {
         const savedFormat = localStorage.getItem("envelopeFormat");
@@ -318,12 +361,14 @@ export default function App() {
 
     const [sender, setSender] = useState(() => {
         const savedSender = localStorage.getItem("envelopeSender");
-        if (savedSender)
+        if (savedSender) {
+            const parsed = JSON.parse(savedSender);
             return {
                 fontFamily: "helvetica",
                 useAsReturnLine: false,
-                ...JSON.parse(savedSender),
+                ...parsed,
             };
+        }
         return {
             text: "",
             x: 10,
@@ -340,12 +385,10 @@ export default function App() {
         const savedRecipient = localStorage.getItem(
             "envelopeRecipientSettings",
         );
-        if (savedRecipient)
-            return {
-                fontFamily: "helvetica",
-                ...JSON.parse(savedRecipient),
-                text: "",
-            };
+        if (savedRecipient) {
+            const parsed = JSON.parse(savedRecipient);
+            return { fontFamily: "helvetica", ...parsed, text: "" };
+        }
         return {
             text: "",
             x: 120,
@@ -357,31 +400,39 @@ export default function App() {
         };
     });
 
-    useEffect(() => {
-        const timer = setTimeout(() => setShowDragHint(false), 5000);
-        return () => clearTimeout(timer);
-    }, []);
-
-    useEffect(() => {
-        localStorage.setItem("envelopeLang", lang);
-        localStorage.setItem("envelopeZoom", zoom);
-        localStorage.setItem("envelopeFormat", JSON.stringify(format));
-        localStorage.setItem(
-            "envelopeOrientation",
-            JSON.stringify(isLandscape),
-        );
-        localStorage.setItem("envelopeSender", JSON.stringify(sender));
-        localStorage.setItem(
-            "envelopeRecipientSettings",
-            JSON.stringify(recipient),
-        );
-    }, [lang, zoom, format, isLandscape, sender, recipient]);
+    useEffect(() => localStorage.setItem("envelopeLang", lang), [lang]);
+    useEffect(() => localStorage.setItem("envelopeZoom", zoom), [zoom]);
+    useEffect(
+        () => localStorage.setItem("envelopeFormat", JSON.stringify(format)),
+        [format],
+    );
+    useEffect(
+        () =>
+            localStorage.setItem(
+                "envelopeOrientation",
+                JSON.stringify(isLandscape),
+            ),
+        [isLandscape],
+    );
+    useEffect(
+        () => localStorage.setItem("envelopeSender", JSON.stringify(sender)),
+        [sender],
+    );
+    useEffect(
+        () =>
+            localStorage.setItem(
+                "envelopeRecipientSettings",
+                JSON.stringify(recipient),
+            ),
+        [recipient],
+    );
 
     const senderRef = useRef(null);
     const recipientRef = useRef(null);
 
     const baseDims = FORMATS[format];
     const currentDims = {
+        ...baseDims,
         width: isLandscape ? baseDims.width : baseDims.height,
         height: isLandscape ? baseDims.height : baseDims.width,
         window: baseDims.window
@@ -399,14 +450,38 @@ export default function App() {
         stamp: baseDims.stamp,
     };
 
-    const isOutOfBounds = (data) => {
-        return (
-            data.x <= 0 ||
-            data.y <= 0 ||
-            data.x >= currentDims.width - 5 ||
-            data.y >= currentDims.height - 5
-        );
-    };
+    // Stellt sicher, dass bei Formatwechsel die Werte nicht im luftleeren Raum landen
+    useEffect(() => {
+        const checkBounds = (prev) => {
+            const newX = clampCoordinate(
+                prev.x,
+                prev.text,
+                prev.fontSize,
+                currentDims.width,
+                currentDims.height,
+                true,
+            );
+            const newY = clampCoordinate(
+                prev.y,
+                prev.text,
+                prev.fontSize,
+                currentDims.width,
+                currentDims.height,
+                false,
+            );
+
+            const finalX = newX === "" ? 0 : newX;
+            const finalY = newY === "" ? 0 : newY;
+
+            if (finalX !== prev.x || finalY !== prev.y) {
+                return { ...prev, x: finalX, y: finalY };
+            }
+            return prev;
+        };
+
+        setSender((prev) => checkBounds(prev));
+        setRecipient((prev) => checkBounds(prev));
+    }, [currentDims.width, currentDims.height]);
 
     const handleReset = () => {
         if (
@@ -429,7 +504,6 @@ export default function App() {
     };
 
     const handleDragStop = (e, data, setter) => {
-        setShowDragHint(false);
         setter((prev) => ({
             ...prev,
             x: Math.round(data.x / zoom),
@@ -449,17 +523,18 @@ export default function App() {
             unit: "mm",
             format: [baseDims.width, baseDims.height],
         });
-        const style = (obj) =>
-            obj.isBold && obj.isItalic
-                ? "bolditalic"
-                : obj.isBold
-                  ? "bold"
-                  : obj.isItalic
-                    ? "italic"
-                    : "normal";
         if (sender.text && !sender.useAsReturnLine) {
             doc.setFontSize(sender.fontSize);
-            doc.setFont(sender.fontFamily || "helvetica", style(sender));
+            doc.setFont(
+                sender.fontFamily || "helvetica",
+                sender.isBold && sender.isItalic
+                    ? "bolditalic"
+                    : sender.isBold
+                      ? "bold"
+                      : sender.isItalic
+                        ? "italic"
+                        : "normal",
+            );
             doc.text(
                 sender.text.split("\n"),
                 Number(sender.x) || 0,
@@ -467,23 +542,28 @@ export default function App() {
             );
         }
         if (recipient.text) {
-            const rx = Number(recipient.x) || 0,
-                ry = Number(recipient.y) || 0;
+            const rx = Number(recipient.x) || 0;
+            const ry = Number(recipient.y) || 0;
             doc.setFontSize(recipient.fontSize);
-            doc.setFont(recipient.fontFamily || "helvetica", style(recipient));
+            doc.setFont(
+                recipient.fontFamily || "helvetica",
+                recipient.isBold && recipient.isItalic
+                    ? "bolditalic"
+                    : recipient.isBold
+                      ? "bold"
+                      : recipient.isItalic
+                        ? "italic"
+                        : "normal",
+            );
             doc.text(recipient.text.split("\n"), rx, ry);
             if (sender.useAsReturnLine && sender.text) {
                 doc.setFontSize(8);
                 doc.setFont(recipient.fontFamily || "helvetica", "normal");
                 const returnLineText = getSingleLineSender();
                 doc.text(returnLineText, rx, ry - 4);
+                const textWidth = doc.getTextWidth(returnLineText);
                 doc.setLineWidth(0.1);
-                doc.line(
-                    rx,
-                    ry - 3.5,
-                    rx + doc.getTextWidth(returnLineText),
-                    ry - 3.5,
-                );
+                doc.line(rx, ry - 3.5, rx + textWidth, ry - 3.5);
             }
         }
         return doc;
@@ -509,7 +589,7 @@ export default function App() {
                     <div className="flex gap-2">
                         <button
                             onClick={handleReset}
-                            className="p-2 text-slate-400 hover:text-red-500 rounded-md transition-colors"
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
                             title={t.reset}
                         >
                             <RotateCcw size={18} />
@@ -561,6 +641,8 @@ export default function App() {
                         icon={User}
                         data={sender}
                         setData={setSender}
+                        maxWidth={currentDims.width}
+                        maxHeight={currentDims.height}
                         t={t}
                         isSender={true}
                     />
@@ -569,18 +651,11 @@ export default function App() {
                         icon={MapPin}
                         data={recipient}
                         setData={setRecipient}
+                        maxWidth={currentDims.width}
+                        maxHeight={currentDims.height}
                         t={t}
                         isSender={false}
                     />
-                    <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl flex gap-3 items-start">
-                        <ShieldCheck
-                            className="text-blue-500 shrink-0 mt-0.5"
-                            size={16}
-                        />
-                        <p className="text-[11px] leading-relaxed text-slate-500 italic">
-                            {t.privacyNote}
-                        </p>
-                    </div>
                 </div>
                 <div className="p-6 bg-white border-t border-slate-200 space-y-4">
                     <div className="flex gap-3">
@@ -611,13 +686,6 @@ export default function App() {
             </div>
 
             <div className="flex-1 bg-grid-pattern overflow-auto relative flex items-center justify-center p-12">
-                {showDragHint && (
-                    <div className="absolute top-10 left-1/2 -translate-x-1/2 z-[60] animate-bounce pointer-events-none">
-                        <div className="bg-blue-600 text-white px-4 py-2 rounded-full shadow-2xl flex items-center gap-2 text-sm font-bold border-2 border-white/50">
-                            <Hand size={18} /> {t.dragHint}
-                        </div>
-                    </div>
-                )}
                 <div className="absolute bottom-8 right-8 flex items-center gap-2 bg-white/80 backdrop-blur-md p-2 rounded-2xl border border-white/50 shadow-2xl z-50">
                     <button
                         onClick={() => handleZoom(-0.5)}
@@ -694,7 +762,7 @@ export default function App() {
                         >
                             <div
                                 ref={senderRef}
-                                className={`absolute cursor-grab active:cursor-grabbing text-slate-600 whitespace-pre-wrap leading-snug p-1 border-2 rounded z-10 transition-colors ${isOutOfBounds(sender) ? "border-red-500 bg-red-50/30" : "border-transparent hover:border-blue-400 hover:bg-blue-50/50 shadow-sm"}`}
+                                className="absolute cursor-move text-slate-600 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 rounded z-10 shadow-sm"
                                 style={{
                                     fontSize: `${sender.fontSize * PT_TO_MM * zoom}px`,
                                     fontWeight: sender.isBold
@@ -726,7 +794,7 @@ export default function App() {
                     >
                         <div
                             ref={recipientRef}
-                            className={`absolute cursor-grab active:cursor-grabbing text-slate-900 whitespace-pre-wrap leading-snug p-1 border-2 rounded z-10 transition-colors ${isOutOfBounds(recipient) ? "border-red-500 bg-red-50/30" : "border-transparent hover:border-blue-400 hover:bg-blue-50/50 shadow-sm"}`}
+                            className="absolute cursor-move text-slate-900 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 rounded z-10 shadow-sm"
                             style={{
                                 fontWeight: recipient.isBold
                                     ? "bold"
