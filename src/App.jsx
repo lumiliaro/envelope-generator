@@ -6,7 +6,9 @@ import {
     MapPin,
     Move,
     Printer,
+    RotateCcw,
     Settings,
+    Stamp,
     Type,
     User,
 } from "lucide-react";
@@ -31,6 +33,7 @@ const TRANSLATIONS = {
         frankZone: "Frankierung",
         windowZone: "Sichtfenster",
         returnLine: "Als Zeile über Empfänger",
+        reset: "Reset",
         formats: {
             "DIN Lang (mit Fenster)": "DIN Lang (mit Fenster)",
             "DIN Lang (ohne Fenster)": "DIN Lang (ohne Fenster)",
@@ -59,6 +62,7 @@ const TRANSLATIONS = {
         frankZone: "Postage",
         windowZone: "Window",
         returnLine: "As line above recipient",
+        reset: "Reset",
         formats: {
             "DIN Lang (mit Fenster)": "DIN Lang (with Window)",
             "DIN Lang (ohne Fenster)": "DIN Lang (no Window)",
@@ -449,6 +453,19 @@ export default function App() {
         });
     }, [currentDims.width, currentDims.height]);
 
+    const handleReset = () => {
+        if (
+            window.confirm(
+                lang === "de"
+                    ? "Alle Einstellungen wirklich zurücksetzen?"
+                    : "Really reset all settings?",
+            )
+        ) {
+            localStorage.clear();
+            window.location.reload();
+        }
+    };
+
     const getFontStyle = (isBold, isItalic) => {
         if (isBold && isItalic) return "bolditalic";
         if (isBold) return "bold";
@@ -456,12 +473,11 @@ export default function App() {
         return "normal";
     };
 
-    const getSingleLineSender = () => {
-        return sender.text
+    const getSingleLineSender = () =>
+        sender.text
             .split("\n")
             .filter((line) => line.trim() !== "")
             .join(" • ");
-    };
 
     const createPDF = () => {
         const doc = new jsPDF({
@@ -469,7 +485,6 @@ export default function App() {
             unit: "mm",
             format: [baseDims.width, baseDims.height],
         });
-
         if (sender.text && !sender.useAsReturnLine) {
             doc.setFontSize(sender.fontSize);
             doc.setFont(
@@ -482,7 +497,6 @@ export default function App() {
                 Number(sender.y) || 0,
             );
         }
-
         if (recipient.text) {
             const rx = Number(recipient.x) || 0;
             const ry = Number(recipient.y) || 0;
@@ -492,7 +506,6 @@ export default function App() {
                 getFontStyle(recipient.isBold, recipient.isItalic),
             );
             doc.text(recipient.text.split("\n"), rx, ry);
-
             if (sender.useAsReturnLine && sender.text) {
                 doc.setFontSize(8);
                 doc.setFont(recipient.fontFamily || "helvetica", "normal");
@@ -506,17 +519,13 @@ export default function App() {
         return doc;
     };
 
-    const handleExportPDF = () => {
-        const doc = createPDF();
-        doc.save(`Envelope_${format.replace(/ /g, "_")}.pdf`);
-    };
-
+    const handleExportPDF = () =>
+        createPDF().save(`Envelope_${format.replace(/ /g, "_")}.pdf`);
     const handlePrint = () => {
         const doc = createPDF();
         doc.autoPrint();
         window.open(doc.output("bloburl"), "_blank");
     };
-
     const handleDrag = (e, data, setter) => {
         setter((prev) => ({
             ...prev,
@@ -524,9 +533,6 @@ export default function App() {
             y: Math.round(data.y / SCALE),
         }));
     };
-
-    const toggleLanguage = () =>
-        setLang((prev) => (prev === "de" ? "en" : "de"));
 
     return (
         <div className="flex h-screen bg-slate-100 font-sans overflow-hidden">
@@ -537,7 +543,7 @@ export default function App() {
                             <Mail className="text-blue-600" size={24} />
                         </div>
                         <div>
-                            <h1 className="font-bold text-lg text-slate-800">
+                            <h1 className="font-bold text-lg text-slate-800 shrink-0">
                                 {t.appTitle}
                             </h1>
                             <p className="text-xs text-slate-500">
@@ -545,14 +551,22 @@ export default function App() {
                             </p>
                         </div>
                     </div>
-                    <button
-                        onClick={toggleLanguage}
-                        className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 px-2.5 py-1.5 rounded-md transition-colors border border-slate-200"
-                        title="Sprache wechseln"
-                    >
-                        <Globe size={14} />
-                        {lang === "de" ? "EN" : "DE"}
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleReset}
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                            title={t.reset}
+                        >
+                            <RotateCcw size={18} />
+                        </button>
+                        <button
+                            onClick={() => setLang(lang === "de" ? "en" : "de")}
+                            className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-blue-600 bg-slate-100 px-2 rounded-md transition-all border border-slate-200"
+                        >
+                            <Globe size={14} />
+                            {lang.toUpperCase()}
+                        </button>
+                    </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -563,7 +577,7 @@ export default function App() {
                         <select
                             value={format}
                             onChange={(e) => setFormat(e.target.value)}
-                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer mb-3"
+                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 outline-none mb-3"
                         >
                             {Object.keys(FORMATS).map((key) => (
                                 <option key={key} value={key}>
@@ -611,14 +625,14 @@ export default function App() {
                 <div className="p-6 bg-white border-t border-slate-200 flex gap-3">
                     <button
                         onClick={handlePrint}
-                        className="flex-1 flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 text-white py-3.5 px-4 rounded-xl font-semibold transition-colors shadow-md hover:shadow-lg focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+                        className="flex-1 flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 text-white py-3.5 px-4 rounded-xl font-semibold transition-colors shadow-md"
                     >
                         <Printer size={20} />
                         {t.print}
                     </button>
                     <button
                         onClick={handleExportPDF}
-                        className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3.5 px-4 rounded-xl font-semibold transition-colors shadow-md hover:shadow-lg focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3.5 px-4 rounded-xl font-semibold transition-colors shadow-md"
                     >
                         <Download size={20} />
                         {t.export}
@@ -627,24 +641,27 @@ export default function App() {
             </div>
             <div className="flex-1 bg-grid-pattern overflow-auto relative flex items-center justify-center p-12">
                 <div
-                    className="relative bg-white shadow-2xl transition-all duration-300 ease-in-out border border-slate-200"
+                    className="relative bg-white shadow-2xl border border-slate-200"
                     style={{
                         width: `${currentDims.width * SCALE}px`,
                         height: `${currentDims.height * SCALE}px`,
                     }}
                 >
                     <div
-                        className="absolute top-0 right-0 bg-red-50/50 border-l-2 border-b-2 border-dashed border-red-300 flex items-center justify-center text-red-400 text-xs font-bold pointer-events-none select-none"
+                        className="absolute top-0 right-0 bg-red-50/50 border-l border-b border-dashed border-red-200 flex flex-col items-center justify-center text-red-300 pointer-events-none select-none"
                         style={{
                             width: `${currentDims.stamp.width * SCALE}px`,
                             height: `${currentDims.stamp.height * SCALE}px`,
                         }}
                     >
-                        {t.frankZone}
+                        <Stamp size={24} className="mb-1" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">
+                            {t.frankZone}
+                        </span>
                     </div>
                     {currentDims.window && (
                         <div
-                            className="absolute bg-slate-100/50 border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-sm font-bold pointer-events-none select-none rounded-sm"
+                            className="absolute bg-slate-100/30 border border-dashed border-slate-200 flex items-center justify-center text-slate-300 text-sm font-bold pointer-events-none select-none rounded-sm"
                             style={{
                                 top: `${currentDims.window.y * SCALE}px`,
                                 left: `${currentDims.window.x * SCALE}px`,
@@ -667,7 +684,7 @@ export default function App() {
                         >
                             <div
                                 ref={senderRef}
-                                className="absolute cursor-move text-slate-600 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 hover:shadow-sm rounded transition-colors group z-10"
+                                className="absolute cursor-move text-slate-600 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 rounded z-10"
                                 style={{
                                     fontSize: `${sender.fontSize * PT_TO_PX}px`,
                                     fontWeight: sender.isBold
@@ -696,7 +713,7 @@ export default function App() {
                     >
                         <div
                             ref={recipientRef}
-                            className="absolute cursor-move text-slate-900 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 hover:shadow-sm rounded transition-colors z-10"
+                            className="absolute cursor-move text-slate-900 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 rounded z-10"
                             style={{
                                 fontWeight: recipient.isBold
                                     ? "bold"
