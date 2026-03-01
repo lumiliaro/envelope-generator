@@ -150,40 +150,18 @@ const AddressCard = ({
 }) => {
     const isDisabled = isSender && data.useAsReturnLine;
 
-    const handleXChange = (e) => {
-        let val = e.target.value;
-        if (val === "") return setData({ ...data, x: "" });
-        val = Number(val);
-        if (val < 0) val = 0;
-        const safeMax = Math.max(0, maxWidth - 40);
-        if (val > safeMax) val = safeMax;
-        setData({ ...data, x: val });
-    };
-
-    const handleYChange = (e) => {
-        let val = e.target.value;
-        if (val === "") return setData({ ...data, y: "" });
-        val = Number(val);
-        if (val < 0) val = 0;
-        const safeMax = Math.max(0, maxHeight - 20);
-        if (val > safeMax) val = safeMax;
-        setData({ ...data, y: val });
-    };
-
     return (
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm transition-shadow hover:shadow-md">
             <div className="flex items-center gap-2 mb-4 text-slate-800 font-semibold">
                 <Icon size={18} className="text-blue-500" />
                 <h3>{title}</h3>
             </div>
-
             <textarea
                 value={data.text}
                 onChange={(e) => setData({ ...data, text: e.target.value })}
-                className="w-full h-32 p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-none mb-4"
+                className="w-full h-32 p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none mb-4"
                 placeholder={t.placeholder}
             />
-
             <div
                 className={`grid grid-cols-2 gap-4 mb-4 ${isDisabled ? "opacity-40 grayscale" : ""}`}
             >
@@ -195,7 +173,9 @@ const AddressCard = ({
                         disabled={isDisabled}
                         type="number"
                         value={data.x}
-                        onChange={handleXChange}
+                        onChange={(e) =>
+                            setData({ ...data, x: Number(e.target.value) })
+                        }
                         className="w-full p-2 bg-slate-50 border border-slate-200 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed"
                     />
                 </div>
@@ -207,12 +187,13 @@ const AddressCard = ({
                         disabled={isDisabled}
                         type="number"
                         value={data.y}
-                        onChange={handleYChange}
+                        onChange={(e) =>
+                            setData({ ...data, y: Number(e.target.value) })
+                        }
                         className="w-full p-2 bg-slate-50 border border-slate-200 rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed"
                     />
                 </div>
             </div>
-
             <div className="flex flex-col gap-3 pt-4 border-t border-slate-100">
                 <div
                     className={`flex items-center gap-2 w-full ${isDisabled ? "opacity-40 grayscale" : ""}`}
@@ -246,7 +227,6 @@ const AddressCard = ({
                         <span className="text-xs text-slate-500">pt</span>
                     </div>
                 </div>
-
                 <div
                     className={`flex items-center gap-4 ${isDisabled ? "opacity-40 grayscale" : ""}`}
                 >
@@ -283,7 +263,6 @@ const AddressCard = ({
                         </span>
                     </label>
                 </div>
-
                 {isSender && (
                     <div className="pt-2 mt-1 border-t border-slate-100">
                         <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
@@ -343,7 +322,6 @@ export default function App() {
         const savedSender = localStorage.getItem("envelopeSender");
         if (savedSender) {
             const parsed = JSON.parse(savedSender);
-            if (parsed.text.includes("Max Mustermann")) parsed.text = "";
             return {
                 fontFamily: "helvetica",
                 useAsReturnLine: false,
@@ -431,35 +409,6 @@ export default function App() {
         stamp: baseDims.stamp,
     };
 
-    useEffect(() => {
-        setSender((prev) => {
-            const safeX = Math.min(
-                Number(prev.x) || 0,
-                Math.max(0, currentDims.width - 40),
-            );
-            const safeY = Math.min(
-                Number(prev.y) || 0,
-                Math.max(0, currentDims.height - 20),
-            );
-            if (safeX !== prev.x || safeY !== prev.y)
-                return { ...prev, x: safeX, y: safeY };
-            return prev;
-        });
-        setRecipient((prev) => {
-            const safeX = Math.min(
-                Number(prev.x) || 0,
-                Math.max(0, currentDims.width - 40),
-            );
-            const safeY = Math.min(
-                Number(prev.y) || 0,
-                Math.max(0, currentDims.height - 20),
-            );
-            if (safeX !== prev.x || safeY !== prev.y)
-                return { ...prev, x: safeX, y: safeY };
-            return prev;
-        });
-    }, [currentDims.width, currentDims.height]);
-
     const handleReset = () => {
         if (
             window.confirm(
@@ -474,14 +423,18 @@ export default function App() {
     };
 
     const handleZoom = (delta) => {
-        setZoom((prev) => Math.max(1, Math.min(6, prev + delta)));
+        setZoom(
+            (prev) =>
+                Math.round(Math.max(1, Math.min(6, prev + delta)) * 10) / 10,
+        );
     };
 
-    const getFontStyle = (isBold, isItalic) => {
-        if (isBold && isItalic) return "bolditalic";
-        if (isBold) return "bold";
-        if (isItalic) return "italic";
-        return "normal";
+    const handleDragStop = (e, data, setter) => {
+        setter((prev) => ({
+            ...prev,
+            x: Math.round(data.x / zoom),
+            y: Math.round(data.y / zoom),
+        }));
     };
 
     const getSingleLineSender = () =>
@@ -500,7 +453,13 @@ export default function App() {
             doc.setFontSize(sender.fontSize);
             doc.setFont(
                 sender.fontFamily || "helvetica",
-                getFontStyle(sender.isBold, sender.isItalic),
+                sender.isBold && sender.isItalic
+                    ? "bolditalic"
+                    : sender.isBold
+                      ? "bold"
+                      : sender.isItalic
+                        ? "italic"
+                        : "normal",
             );
             doc.text(
                 sender.text.split("\n"),
@@ -514,7 +473,13 @@ export default function App() {
             doc.setFontSize(recipient.fontSize);
             doc.setFont(
                 recipient.fontFamily || "helvetica",
-                getFontStyle(recipient.isBold, recipient.isItalic),
+                recipient.isBold && recipient.isItalic
+                    ? "bolditalic"
+                    : recipient.isBold
+                      ? "bold"
+                      : recipient.isItalic
+                        ? "italic"
+                        : "normal",
             );
             doc.text(recipient.text.split("\n"), rx, ry);
             if (sender.useAsReturnLine && sender.text) {
@@ -530,24 +495,8 @@ export default function App() {
         return doc;
     };
 
-    const handleExportPDF = () =>
-        createPDF().save(`Envelope_${format.replace(/ /g, "_")}.pdf`);
-    const handlePrint = () => {
-        const doc = createPDF();
-        doc.autoPrint();
-        window.open(doc.output("bloburl"), "_blank");
-    };
-    const handleDrag = (e, data, setter) => {
-        setter((prev) => ({
-            ...prev,
-            x: Math.round(data.x / zoom),
-            y: Math.round(data.y / zoom),
-        }));
-    };
-
     return (
         <div className="flex h-screen bg-slate-100 font-sans overflow-hidden relative">
-            {/* SEITENLEISTE */}
             <div className="w-[400px] bg-slate-50 flex flex-col h-full border-r border-slate-200 z-10 shadow-lg shrink-0">
                 <div className="p-6 bg-white border-b border-slate-200 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -580,7 +529,6 @@ export default function App() {
                         </button>
                     </div>
                 </div>
-
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                         <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
@@ -635,18 +583,25 @@ export default function App() {
                         isSender={false}
                     />
                 </div>
-
-                <div className="p-6 bg-white border-t border-slate-200">
+                <div className="p-6 bg-white border-t border-slate-200 space-y-4">
                     <div className="flex gap-3">
                         <button
-                            onClick={handlePrint}
+                            onClick={() => {
+                                const doc = createPDF();
+                                doc.autoPrint();
+                                window.open(doc.output("bloburl"), "_blank");
+                            }}
                             className="flex-1 flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 text-white py-3.5 px-4 rounded-xl font-semibold transition-colors shadow-md"
                         >
                             <Printer size={20} />
                             {t.print}
                         </button>
                         <button
-                            onClick={handleExportPDF}
+                            onClick={() =>
+                                createPDF().save(
+                                    `Envelope_${format.replace(/ /g, "_")}.pdf`,
+                                )
+                            }
                             className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3.5 px-4 rounded-xl font-semibold transition-colors shadow-md"
                         >
                             <Download size={20} />
@@ -656,9 +611,7 @@ export default function App() {
                 </div>
             </div>
 
-            {/* HAUPTBEREICH (Vorschau) */}
             <div className="flex-1 bg-grid-pattern overflow-auto relative flex items-center justify-center p-12">
-                {/* NEU: ELEGANTE FLOATING ZOOM-STEUERUNG (UNTEN RECHTS) */}
                 <div className="absolute bottom-8 right-8 flex items-center gap-2 bg-white/80 backdrop-blur-md p-2 rounded-2xl border border-white/50 shadow-2xl z-50">
                     <button
                         onClick={() => handleZoom(-0.5)}
@@ -667,7 +620,6 @@ export default function App() {
                     >
                         <Minus size={18} strokeWidth={3} />
                     </button>
-
                     <div className="w-20 text-center border-x border-slate-200 px-2">
                         <div className="text-[10px] uppercase font-bold text-slate-400 tracking-tighter leading-none mb-1">
                             Zoom
@@ -676,7 +628,6 @@ export default function App() {
                             {((zoom / 3) * 100).toFixed(0)}%
                         </div>
                     </div>
-
                     <button
                         onClick={() => handleZoom(0.5)}
                         className="p-2 text-slate-600 hover:bg-blue-600 hover:text-white rounded-xl transition-all active:scale-90"
@@ -731,11 +682,13 @@ export default function App() {
                                 x: (Number(sender.x) || 0) * zoom,
                                 y: (Number(sender.y) || 0) * zoom,
                             }}
-                            onDrag={(e, data) => handleDrag(e, data, setSender)}
+                            onStop={(e, data) =>
+                                handleDragStop(e, data, setSender)
+                            }
                         >
                             <div
                                 ref={senderRef}
-                                className="absolute cursor-move text-slate-600 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 rounded z-10"
+                                className="absolute cursor-move text-slate-600 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 rounded z-10 shadow-sm"
                                 style={{
                                     fontSize: `${sender.fontSize * PT_TO_MM * zoom}px`,
                                     fontWeight: sender.isBold
@@ -761,11 +714,13 @@ export default function App() {
                             x: (Number(recipient.x) || 0) * zoom,
                             y: (Number(recipient.y) || 0) * zoom,
                         }}
-                        onDrag={(e, data) => handleDrag(e, data, setRecipient)}
+                        onStop={(e, data) =>
+                            handleDragStop(e, data, setRecipient)
+                        }
                     >
                         <div
                             ref={recipientRef}
-                            className="absolute cursor-move text-slate-900 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 rounded z-10"
+                            className="absolute cursor-move text-slate-900 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 rounded z-10 shadow-sm"
                             style={{
                                 fontWeight: recipient.isBold
                                     ? "bold"
