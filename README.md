@@ -2,7 +2,7 @@
 
 A modern, fast, and entirely client-side React application that allows you to design, format, and print envelopes directly from your web browser. Built with Vite and Tailwind CSS.
 
-**[🚀 View Live Demo]([YOUR_VERCEL_LINK_HERE](https://lumiliaro.github.io/envelope-generator/)])**
+**[🚀 View Live Demo]([https://lumiliaro.github.io/envelope-generator/])**
 
 ## ✨ Features
 
