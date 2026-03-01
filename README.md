@@ -41,8 +41,8 @@ Make sure you have [Node.js](https://nodejs.org/) installed.
 1. **Clone the repository:**
 
 ```bash
-git clone [https://github.com/YOUR_USERNAME/briefumschlag-app.git](https://github.com/YOUR_USERNAME/briefumschlag-app.git)
-cd briefumschlag-app
+git clone [https://github.com/lumiliaro/envelope-generator.git](https://github.com/lumiliaro/envelope-generator.git)
+cd envelope-generator
 ```
 
 2. **Install dependencies:**
