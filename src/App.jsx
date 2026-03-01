@@ -546,7 +546,8 @@ export default function App() {
     };
 
     return (
-        <div className="flex h-screen bg-slate-100 font-sans overflow-hidden">
+        <div className="flex h-screen bg-slate-100 font-sans overflow-hidden relative">
+            {/* SEITENLEISTE */}
             <div className="w-[400px] bg-slate-50 flex flex-col h-full border-r border-slate-200 z-10 shadow-lg shrink-0">
                 <div className="p-6 bg-white border-b border-slate-200 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -579,6 +580,7 @@ export default function App() {
                         </button>
                     </div>
                 </div>
+
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                         <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
@@ -634,29 +636,7 @@ export default function App() {
                     />
                 </div>
 
-                <div className="p-6 bg-white border-t border-slate-200 space-y-4">
-                    <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-xl border border-slate-200 shadow-inner">
-                        <button
-                            onClick={() => handleZoom(-0.5)}
-                            className="p-2.5 bg-white text-slate-600 rounded-lg shadow border border-slate-200 hover:bg-slate-50 hover:text-blue-600 transition-colors active:scale-95"
-                            title="Zoom Out"
-                        >
-                            <Minus size={18} />
-                        </button>
-                        <div className="flex-1 text-sm font-bold text-slate-500 text-center tracking-tight">
-                            {((zoom / 3) * 100).toFixed(0)}%{" "}
-                            <span className="text-xs font-medium text-slate-400">
-                                ({currentDims.width}×{currentDims.height}mm)
-                            </span>
-                        </div>
-                        <button
-                            onClick={() => handleZoom(0.5)}
-                            className="p-2.5 bg-white text-slate-600 rounded-lg shadow border border-slate-200 hover:bg-slate-50 hover:text-blue-600 transition-colors active:scale-95"
-                            title="Zoom In"
-                        >
-                            <Plus size={18} />
-                        </button>
-                    </div>
+                <div className="p-6 bg-white border-t border-slate-200">
                     <div className="flex gap-3">
                         <button
                             onClick={handlePrint}
@@ -676,7 +656,36 @@ export default function App() {
                 </div>
             </div>
 
+            {/* HAUPTBEREICH (Vorschau) */}
             <div className="flex-1 bg-grid-pattern overflow-auto relative flex items-center justify-center p-12">
+                {/* NEU: ELEGANTE FLOATING ZOOM-STEUERUNG (UNTEN RECHTS) */}
+                <div className="absolute bottom-8 right-8 flex items-center gap-2 bg-white/80 backdrop-blur-md p-2 rounded-2xl border border-white/50 shadow-2xl z-50">
+                    <button
+                        onClick={() => handleZoom(-0.5)}
+                        className="p-2 text-slate-600 hover:bg-blue-600 hover:text-white rounded-xl transition-all active:scale-90"
+                        title="Zoom Out"
+                    >
+                        <Minus size={18} strokeWidth={3} />
+                    </button>
+
+                    <div className="w-20 text-center border-x border-slate-200 px-2">
+                        <div className="text-[10px] uppercase font-bold text-slate-400 tracking-tighter leading-none mb-1">
+                            Zoom
+                        </div>
+                        <div className="text-sm font-black text-slate-800 leading-none">
+                            {((zoom / 3) * 100).toFixed(0)}%
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={() => handleZoom(0.5)}
+                        className="p-2 text-slate-600 hover:bg-blue-600 hover:text-white rounded-xl transition-all active:scale-90"
+                        title="Zoom In"
+                    >
+                        <Plus size={18} strokeWidth={3} />
+                    </button>
+                </div>
+
                 <div
                     className="relative bg-white shadow-2xl border border-slate-200 transition-all duration-300"
                     style={{
@@ -713,6 +722,7 @@ export default function App() {
                             {t.windowZone}
                         </div>
                     )}
+
                     {!sender.useAsReturnLine && (
                         <Draggable
                             bounds="parent"
@@ -743,6 +753,7 @@ export default function App() {
                             </div>
                         </Draggable>
                     )}
+
                     <Draggable
                         bounds="parent"
                         nodeRef={recipientRef}
