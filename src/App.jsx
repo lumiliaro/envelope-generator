@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf";
 import {
     Download,
     Globe,
+    Hand,
     Mail,
     MapPin,
     Minus,
@@ -36,6 +37,7 @@ const TRANSLATIONS = {
         windowZone: "Sichtfenster",
         returnLine: "Als Zeile über Empfänger",
         reset: "Reset",
+        dragHint: "Adressen zum Verschieben ziehen", // Neu
         formats: {
             "DIN Lang (mit Fenster)": "DIN Lang (mit Fenster)",
             "DIN Lang (ohne Fenster)": "DIN Lang (ohne Fenster)",
@@ -65,6 +67,7 @@ const TRANSLATIONS = {
         windowZone: "Window",
         returnLine: "As line above recipient",
         reset: "Reset",
+        dragHint: "Drag addresses to reposition", // Neu
         formats: {
             "DIN Lang (mit Fenster)": "DIN Lang (with Window)",
             "DIN Lang (ohne Fenster)": "DIN Lang (no Window)",
@@ -299,11 +302,10 @@ export default function App() {
         () => localStorage.getItem("envelopeLang") || "de",
     );
     const t = TRANSLATIONS[lang];
-
-    const [zoom, setZoom] = useState(() => {
-        const savedZoom = localStorage.getItem("envelopeZoom");
-        return savedZoom ? Number(savedZoom) : 3;
-    });
+    const [zoom, setZoom] = useState(
+        () => Number(localStorage.getItem("envelopeZoom")) || 3,
+    );
+    const [showDragHint, setShowDragHint] = useState(true); // Neu für den Hinweis
 
     const [format, setFormat] = useState(() => {
         const savedFormat = localStorage.getItem("envelopeFormat");
@@ -359,6 +361,12 @@ export default function App() {
         };
     });
 
+    useEffect(() => {
+        // Hinweis nach 5 Sekunden ausblenden
+        const timer = setTimeout(() => setShowDragHint(false), 5000);
+        return () => clearTimeout(timer);
+    }, []);
+
     useEffect(() => localStorage.setItem("envelopeLang", lang), [lang]);
     useEffect(() => localStorage.setItem("envelopeZoom", zoom), [zoom]);
     useEffect(
@@ -391,7 +399,6 @@ export default function App() {
 
     const baseDims = FORMATS[format];
     const currentDims = {
-        ...baseDims,
         width: isLandscape ? baseDims.width : baseDims.height,
         height: isLandscape ? baseDims.height : baseDims.width,
         window: baseDims.window
@@ -430,6 +437,7 @@ export default function App() {
     };
 
     const handleDragStop = (e, data, setter) => {
+        setShowDragHint(false); // Beim ersten Bewegen Hinweis sofort ausblenden
         setter((prev) => ({
             ...prev,
             x: Math.round(data.x / zoom),
@@ -449,18 +457,17 @@ export default function App() {
             unit: "mm",
             format: [baseDims.width, baseDims.height],
         });
+        const getStyle = (obj) =>
+            obj.isBold && obj.isItalic
+                ? "bolditalic"
+                : obj.isBold
+                  ? "bold"
+                  : obj.isItalic
+                    ? "italic"
+                    : "normal";
         if (sender.text && !sender.useAsReturnLine) {
             doc.setFontSize(sender.fontSize);
-            doc.setFont(
-                sender.fontFamily || "helvetica",
-                sender.isBold && sender.isItalic
-                    ? "bolditalic"
-                    : sender.isBold
-                      ? "bold"
-                      : sender.isItalic
-                        ? "italic"
-                        : "normal",
-            );
+            doc.setFont(sender.fontFamily, getStyle(sender));
             doc.text(
                 sender.text.split("\n"),
                 Number(sender.x) || 0,
@@ -468,28 +475,18 @@ export default function App() {
             );
         }
         if (recipient.text) {
-            const rx = Number(recipient.x) || 0;
-            const ry = Number(recipient.y) || 0;
+            const rx = Number(recipient.x) || 0,
+                ry = Number(recipient.y) || 0;
             doc.setFontSize(recipient.fontSize);
-            doc.setFont(
-                recipient.fontFamily || "helvetica",
-                recipient.isBold && recipient.isItalic
-                    ? "bolditalic"
-                    : recipient.isBold
-                      ? "bold"
-                      : recipient.isItalic
-                        ? "italic"
-                        : "normal",
-            );
+            doc.setFont(recipient.fontFamily, getStyle(recipient));
             doc.text(recipient.text.split("\n"), rx, ry);
             if (sender.useAsReturnLine && sender.text) {
                 doc.setFontSize(8);
-                doc.setFont(recipient.fontFamily || "helvetica", "normal");
-                const returnLineText = getSingleLineSender();
-                doc.text(returnLineText, rx, ry - 4);
-                const textWidth = doc.getTextWidth(returnLineText);
+                doc.setFont(recipient.fontFamily, "normal");
+                const line = getSingleLineSender();
+                doc.text(line, rx, ry - 4);
                 doc.setLineWidth(0.1);
-                doc.line(rx, ry - 3.5, rx + textWidth, ry - 3.5);
+                doc.line(rx, ry - 3.5, rx + doc.getTextWidth(line), ry - 3.5);
             }
         }
         return doc;
@@ -567,8 +564,6 @@ export default function App() {
                         icon={User}
                         data={sender}
                         setData={setSender}
-                        maxWidth={currentDims.width}
-                        maxHeight={currentDims.height}
                         t={t}
                         isSender={true}
                     />
@@ -577,8 +572,6 @@ export default function App() {
                         icon={MapPin}
                         data={recipient}
                         setData={setRecipient}
-                        maxWidth={currentDims.width}
-                        maxHeight={currentDims.height}
                         t={t}
                         isSender={false}
                     />
@@ -612,6 +605,15 @@ export default function App() {
             </div>
 
             <div className="flex-1 bg-grid-pattern overflow-auto relative flex items-center justify-center p-12">
+                {/* Pulsierender Hinweis */}
+                {showDragHint && (
+                    <div className="absolute top-10 left-1/2 -translate-x-1/2 z-[60] animate-bounce pointer-events-none">
+                        <div className="bg-blue-600 text-white px-4 py-2 rounded-full shadow-2xl flex items-center gap-2 text-sm font-bold border-2 border-white/50">
+                            <Hand size={18} /> {t.dragHint}
+                        </div>
+                    </div>
+                )}
+
                 <div className="absolute bottom-8 right-8 flex items-center gap-2 bg-white/80 backdrop-blur-md p-2 rounded-2xl border border-white/50 shadow-2xl z-50">
                     <button
                         onClick={() => handleZoom(-0.5)}
@@ -688,7 +690,7 @@ export default function App() {
                         >
                             <div
                                 ref={senderRef}
-                                className="absolute cursor-move text-slate-600 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 rounded z-10 shadow-sm"
+                                className="absolute cursor-grab active:cursor-grabbing text-slate-600 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 rounded z-10 shadow-sm"
                                 style={{
                                     fontSize: `${sender.fontSize * PT_TO_MM * zoom}px`,
                                     fontWeight: sender.isBold
@@ -720,7 +722,7 @@ export default function App() {
                     >
                         <div
                             ref={recipientRef}
-                            className="absolute cursor-move text-slate-900 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 rounded z-10 shadow-sm"
+                            className="absolute cursor-grab active:cursor-grabbing text-slate-900 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 rounded z-10 shadow-sm"
                             style={{
                                 fontWeight: recipient.isBold
                                     ? "bold"
