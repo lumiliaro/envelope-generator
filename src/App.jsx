@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf";
 import {
     Download,
     Globe,
+    Hand,
     Mail,
     MapPin,
     Minus,
@@ -9,7 +10,8 @@ import {
     Plus,
     Printer,
     RotateCcw,
-    Settings,
+    Settings, // Für den Drag-Hinweis
+    ShieldCheck,
     Stamp,
     Type,
     User,
@@ -36,6 +38,9 @@ const TRANSLATIONS = {
         windowZone: "Sichtfenster",
         returnLine: "Als Zeile über Empfänger",
         reset: "Reset",
+        dragHint: "Adressen zum Verschieben ziehen", // Neu hinzugefügt
+        privacyNote:
+            "Datenschutz: Keine Server-Speicherung. Daten verbleiben lokal in Ihrem Browser.", // Neu hinzugefügt
         formats: {
             "DIN Lang (mit Fenster)": "DIN Lang (mit Fenster)",
             "DIN Lang (ohne Fenster)": "DIN Lang (ohne Fenster)",
@@ -65,6 +70,9 @@ const TRANSLATIONS = {
         windowZone: "Window",
         returnLine: "As line above recipient",
         reset: "Reset",
+        dragHint: "Drag addresses to reposition", // Neu hinzugefügt
+        privacyNote:
+            "Privacy: No server storage. All data stays local in your browser.", // Neu hinzugefügt
         formats: {
             "DIN Lang (mit Fenster)": "DIN Lang (with Window)",
             "DIN Lang (ohne Fenster)": "DIN Lang (no Window)",
@@ -146,15 +154,13 @@ const clampCoordinate = (val, text, fontSize, maxW, maxH, isX) => {
 
     const safeText = text || " ";
     if (isX) {
-        // Längste Zeile finden, um die Breite zu schätzen
         const maxChars = Math.max(...safeText.split("\n").map((l) => l.length));
-        const approxWidth = maxChars * fontSize * 0.22; // 0.22mm pro pt ist ein sicherer Faktor
-        const safeMaxX = Math.max(0, maxW - approxWidth - 5); // 5mm Randpuffer
+        const approxWidth = maxChars * fontSize * 0.22;
+        const safeMaxX = Math.max(0, maxW - approxWidth - 5);
         if (num > safeMaxX) num = Math.floor(safeMaxX);
     } else {
-        // Anzahl der Zeilen zählen, um die Höhe zu schätzen
         const linesCount = safeText.split("\n").length;
-        const approxHeight = linesCount * fontSize * 0.45; // 0.45mm pro pt inkl. Zeilenabstand
+        const approxHeight = linesCount * fontSize * 0.45;
         const safeMaxY = Math.max(0, maxH - approxHeight - 5);
         if (num > safeMaxY) num = Math.floor(safeMaxY);
     }
@@ -183,7 +189,6 @@ const AddressCard = ({
                 value={data.text}
                 onChange={(e) => {
                     const newText = e.target.value;
-                    // Sofortige Korrektur der X/Y Achse, falls der neue Text zu lang ist
                     const newX = clampCoordinate(
                         data.x,
                         newText,
@@ -277,7 +282,6 @@ const AddressCard = ({
                             value={data.fontSize}
                             onChange={(e) => {
                                 const newFontSize = Number(e.target.value);
-                                // Auch hier korrigieren: Größere Schrift = mehr Platzbedarf
                                 const newX = clampCoordinate(
                                     data.x,
                                     data.text,
@@ -384,6 +388,8 @@ export default function App() {
         return savedZoom ? Number(savedZoom) : 3;
     });
 
+    const [showDragHint, setShowDragHint] = useState(true); // Neu: State für Hinweis
+
     const [format, setFormat] = useState(() => {
         const savedFormat = localStorage.getItem("envelopeFormat");
         const parsed = savedFormat
@@ -438,6 +444,12 @@ export default function App() {
         };
     });
 
+    // Neu: Hinweis nach 5 Sekunden ausblenden
+    useEffect(() => {
+        const timer = setTimeout(() => setShowDragHint(false), 5000);
+        return () => clearTimeout(timer);
+    }, []);
+
     useEffect(() => localStorage.setItem("envelopeLang", lang), [lang]);
     useEffect(() => localStorage.setItem("envelopeZoom", zoom), [zoom]);
     useEffect(
@@ -488,7 +500,6 @@ export default function App() {
         stamp: baseDims.stamp,
     };
 
-    // Stellt sicher, dass bei Formatwechsel die Werte im Umschlag bleiben
     useEffect(() => {
         const checkBounds = (prev) => {
             const newX = clampCoordinate(
@@ -542,6 +553,7 @@ export default function App() {
     };
 
     const handleDragStop = (e, data, setter) => {
+        setShowDragHint(false); // Neu: Blendet den Hinweis bei der ersten Interaktion aus
         setter((prev) => ({
             ...prev,
             x: Math.round(data.x / zoom),
@@ -694,6 +706,17 @@ export default function App() {
                         t={t}
                         isSender={false}
                     />
+
+                    {/* NEU: Datenschutz-Hinweis in der Seitenleiste */}
+                    <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl flex gap-3 items-start">
+                        <ShieldCheck
+                            className="text-blue-500 shrink-0 mt-0.5"
+                            size={16}
+                        />
+                        <p className="text-[11px] leading-relaxed text-slate-500 italic">
+                            {t.privacyNote}
+                        </p>
+                    </div>
                 </div>
                 <div className="p-6 bg-white border-t border-slate-200 space-y-4">
                     <div className="flex gap-3">
@@ -724,6 +747,15 @@ export default function App() {
             </div>
 
             <div className="flex-1 bg-grid-pattern overflow-auto relative flex items-center justify-center p-12">
+                {/* NEU: Pulsierender Hinweis */}
+                {showDragHint && (
+                    <div className="absolute top-10 left-1/2 -translate-x-1/2 z-[60] animate-bounce pointer-events-none">
+                        <div className="bg-blue-600 text-white px-4 py-2 rounded-full shadow-2xl flex items-center gap-2 text-sm font-bold border-2 border-white/50">
+                            <Hand size={18} /> {t.dragHint}
+                        </div>
+                    </div>
+                )}
+
                 <div className="absolute bottom-8 right-8 flex items-center gap-2 bg-white/80 backdrop-blur-md p-2 rounded-2xl border border-white/50 shadow-2xl z-50">
                     <button
                         onClick={() => handleZoom(-0.5)}
@@ -798,9 +830,10 @@ export default function App() {
                                 handleDragStop(e, data, setSender)
                             }
                         >
+                            {/* NEU: Cursor-Klassen hinzugefügt (cursor-grab active:cursor-grabbing) */}
                             <div
                                 ref={senderRef}
-                                className="absolute cursor-move text-slate-600 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 rounded z-10 shadow-sm"
+                                className="absolute cursor-grab active:cursor-grabbing text-slate-600 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 rounded z-10 shadow-sm"
                                 style={{
                                     fontSize: `${sender.fontSize * PT_TO_MM * zoom}px`,
                                     fontWeight: sender.isBold
@@ -830,9 +863,10 @@ export default function App() {
                             handleDragStop(e, data, setRecipient)
                         }
                     >
+                        {/* NEU: Cursor-Klassen hinzugefügt (cursor-grab active:cursor-grabbing) */}
                         <div
                             ref={recipientRef}
-                            className="absolute cursor-move text-slate-900 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 rounded z-10 shadow-sm"
+                            className="absolute cursor-grab active:cursor-grabbing text-slate-900 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 rounded z-10 shadow-sm"
                             style={{
                                 fontWeight: recipient.isBold
                                     ? "bold"
