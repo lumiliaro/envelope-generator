@@ -4,7 +4,9 @@ import {
     Globe,
     Mail,
     MapPin,
+    Minus,
     Move,
+    Plus,
     Printer,
     RotateCcw,
     Settings,
@@ -134,8 +136,7 @@ const FORMATS = {
     },
 };
 
-const SCALE = 3;
-const PT_TO_PX = (25.4 / 72) * SCALE;
+const PT_TO_MM = 25.4 / 72;
 
 const AddressCard = ({
     title,
@@ -320,6 +321,11 @@ export default function App() {
     );
     const t = TRANSLATIONS[lang];
 
+    const [zoom, setZoom] = useState(() => {
+        const savedZoom = localStorage.getItem("envelopeZoom");
+        return savedZoom ? Number(savedZoom) : 3;
+    });
+
     const [format, setFormat] = useState(() => {
         const savedFormat = localStorage.getItem("envelopeFormat");
         const parsed = savedFormat
@@ -376,6 +382,7 @@ export default function App() {
     });
 
     useEffect(() => localStorage.setItem("envelopeLang", lang), [lang]);
+    useEffect(() => localStorage.setItem("envelopeZoom", zoom), [zoom]);
     useEffect(
         () => localStorage.setItem("envelopeFormat", JSON.stringify(format)),
         [format],
@@ -466,6 +473,10 @@ export default function App() {
         }
     };
 
+    const handleZoom = (delta) => {
+        setZoom((prev) => Math.max(1, Math.min(6, prev + delta)));
+    };
+
     const getFontStyle = (isBold, isItalic) => {
         if (isBold && isItalic) return "bolditalic";
         if (isBold) return "bold";
@@ -529,8 +540,8 @@ export default function App() {
     const handleDrag = (e, data, setter) => {
         setter((prev) => ({
             ...prev,
-            x: Math.round(data.x / SCALE),
-            y: Math.round(data.y / SCALE),
+            x: Math.round(data.x / zoom),
+            y: Math.round(data.y / zoom),
         }));
     };
 
@@ -577,7 +588,7 @@ export default function App() {
                         <select
                             value={format}
                             onChange={(e) => setFormat(e.target.value)}
-                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 outline-none mb-3"
+                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer mb-3"
                         >
                             {Object.keys(FORMATS).map((key) => (
                                 <option key={key} value={key}>
@@ -622,51 +633,81 @@ export default function App() {
                         isSender={false}
                     />
                 </div>
-                <div className="p-6 bg-white border-t border-slate-200 flex gap-3">
-                    <button
-                        onClick={handlePrint}
-                        className="flex-1 flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 text-white py-3.5 px-4 rounded-xl font-semibold transition-colors shadow-md"
-                    >
-                        <Printer size={20} />
-                        {t.print}
-                    </button>
-                    <button
-                        onClick={handleExportPDF}
-                        className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3.5 px-4 rounded-xl font-semibold transition-colors shadow-md"
-                    >
-                        <Download size={20} />
-                        {t.export}
-                    </button>
+
+                <div className="p-6 bg-white border-t border-slate-200 space-y-4">
+                    <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-xl border border-slate-200 shadow-inner">
+                        <button
+                            onClick={() => handleZoom(-0.5)}
+                            className="p-2.5 bg-white text-slate-600 rounded-lg shadow border border-slate-200 hover:bg-slate-50 hover:text-blue-600 transition-colors active:scale-95"
+                            title="Zoom Out"
+                        >
+                            <Minus size={18} />
+                        </button>
+                        <div className="flex-1 text-sm font-bold text-slate-500 text-center tracking-tight">
+                            {((zoom / 3) * 100).toFixed(0)}%{" "}
+                            <span className="text-xs font-medium text-slate-400">
+                                ({currentDims.width}×{currentDims.height}mm)
+                            </span>
+                        </div>
+                        <button
+                            onClick={() => handleZoom(0.5)}
+                            className="p-2.5 bg-white text-slate-600 rounded-lg shadow border border-slate-200 hover:bg-slate-50 hover:text-blue-600 transition-colors active:scale-95"
+                            title="Zoom In"
+                        >
+                            <Plus size={18} />
+                        </button>
+                    </div>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={handlePrint}
+                            className="flex-1 flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-900 text-white py-3.5 px-4 rounded-xl font-semibold transition-colors shadow-md"
+                        >
+                            <Printer size={20} />
+                            {t.print}
+                        </button>
+                        <button
+                            onClick={handleExportPDF}
+                            className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3.5 px-4 rounded-xl font-semibold transition-colors shadow-md"
+                        >
+                            <Download size={20} />
+                            {t.export}
+                        </button>
+                    </div>
                 </div>
             </div>
+
             <div className="flex-1 bg-grid-pattern overflow-auto relative flex items-center justify-center p-12">
                 <div
-                    className="relative bg-white shadow-2xl border border-slate-200"
+                    className="relative bg-white shadow-2xl border border-slate-200 transition-all duration-300"
                     style={{
-                        width: `${currentDims.width * SCALE}px`,
-                        height: `${currentDims.height * SCALE}px`,
+                        width: `${currentDims.width * zoom}px`,
+                        height: `${currentDims.height * zoom}px`,
                     }}
                 >
                     <div
                         className="absolute top-0 right-0 bg-red-50/50 border-l border-b border-dashed border-red-200 flex flex-col items-center justify-center text-red-300 pointer-events-none select-none"
                         style={{
-                            width: `${currentDims.stamp.width * SCALE}px`,
-                            height: `${currentDims.stamp.height * SCALE}px`,
+                            width: `${currentDims.stamp.width * zoom}px`,
+                            height: `${currentDims.stamp.height * zoom}px`,
                         }}
                     >
-                        <Stamp size={24} className="mb-1" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider">
+                        <Stamp size={zoom * 8} className="mb-1" />
+                        <span
+                            className="font-bold uppercase tracking-wider"
+                            style={{ fontSize: `${zoom * 3}px` }}
+                        >
                             {t.frankZone}
                         </span>
                     </div>
                     {currentDims.window && (
                         <div
-                            className="absolute bg-slate-100/30 border border-dashed border-slate-200 flex items-center justify-center text-slate-300 text-sm font-bold pointer-events-none select-none rounded-sm"
+                            className="absolute bg-slate-100/30 border border-dashed border-slate-200 flex items-center justify-center text-slate-300 font-bold pointer-events-none select-none rounded-sm"
                             style={{
-                                top: `${currentDims.window.y * SCALE}px`,
-                                left: `${currentDims.window.x * SCALE}px`,
-                                width: `${currentDims.window.width * SCALE}px`,
-                                height: `${currentDims.window.height * SCALE}px`,
+                                top: `${currentDims.window.y * zoom}px`,
+                                left: `${currentDims.window.x * zoom}px`,
+                                width: `${currentDims.window.width * zoom}px`,
+                                height: `${currentDims.window.height * zoom}px`,
+                                fontSize: `${zoom * 4}px`,
                             }}
                         >
                             {t.windowZone}
@@ -677,8 +718,8 @@ export default function App() {
                             bounds="parent"
                             nodeRef={senderRef}
                             position={{
-                                x: (Number(sender.x) || 0) * SCALE,
-                                y: (Number(sender.y) || 0) * SCALE,
+                                x: (Number(sender.x) || 0) * zoom,
+                                y: (Number(sender.y) || 0) * zoom,
                             }}
                             onDrag={(e, data) => handleDrag(e, data, setSender)}
                         >
@@ -686,7 +727,7 @@ export default function App() {
                                 ref={senderRef}
                                 className="absolute cursor-move text-slate-600 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 rounded z-10"
                                 style={{
-                                    fontSize: `${sender.fontSize * PT_TO_PX}px`,
+                                    fontSize: `${sender.fontSize * PT_TO_MM * zoom}px`,
                                     fontWeight: sender.isBold
                                         ? "bold"
                                         : "normal",
@@ -706,8 +747,8 @@ export default function App() {
                         bounds="parent"
                         nodeRef={recipientRef}
                         position={{
-                            x: (Number(recipient.x) || 0) * SCALE,
-                            y: (Number(recipient.y) || 0) * SCALE,
+                            x: (Number(recipient.x) || 0) * zoom,
+                            y: (Number(recipient.y) || 0) * zoom,
                         }}
                         onDrag={(e, data) => handleDrag(e, data, setRecipient)}
                     >
@@ -729,10 +770,10 @@ export default function App() {
                             {sender.useAsReturnLine && sender.text && (
                                 <div
                                     style={{
-                                        fontSize: `${8 * PT_TO_PX}px`,
+                                        fontSize: `${8 * PT_TO_MM * zoom}px`,
                                         fontWeight: "normal",
                                         fontStyle: "normal",
-                                        marginBottom: `${2 * SCALE}px`,
+                                        marginBottom: `${2 * zoom}px`,
                                         borderBottom: "1px solid currentColor",
                                         display: "inline-block",
                                         whiteSpace: "nowrap",
@@ -743,7 +784,7 @@ export default function App() {
                             )}
                             <div
                                 style={{
-                                    fontSize: `${recipient.fontSize * PT_TO_PX}px`,
+                                    fontSize: `${recipient.fontSize * PT_TO_MM * zoom}px`,
                                 }}
                             >
                                 {recipient.text || " "}
