@@ -69,7 +69,7 @@ When using the **Print** feature, make sure your printer settings in the browser
 
 ## 📸 Screenshots
 
-_(Add a screenshot of your app here by uploading an image to your repository and linking it like this: `![App Screenshot](./screenshot.png)`)_
+![App Screenshot](./screenshot.png)
 
 ## 📄 License
 
