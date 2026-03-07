@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Draggable from "react-draggable";
+import packageJson from "../package.json";
 
 const TRANSLATIONS = {
     de: {
@@ -640,6 +641,9 @@ export default function App() {
                             </h1>
                             <p className="text-xs text-slate-500">
                                 {t.appSubtitle}
+                                <span className="bg-slate-200/70 text-slate-500 text-[9px] font-bold px-1.5 py-0.5 rounded-md tracking-wider">
+                                    v{packageJson.version}
+                                </span>
                             </p>
                         </div>
                     </div>
