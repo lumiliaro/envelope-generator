@@ -38,7 +38,7 @@ const TRANSLATIONS = {
         reset: "Reset",
         dragHint: "Adressen zum Verschieben ziehen",
         privacyNote:
-            "Datenschutz: Keine Server-Speicherung. Daten verbleiben lokal in Ihrem Browser.",
+            "Datenschutz: Keine Server-Speicherung. \nDaten verbleiben lokal in Ihrem Browser.",
         formats: {
             "DIN A4 (Briefbogen)": "DIN A4 (Briefbogen)",
             "DIN Lang (mit Fenster)": "DIN Lang (mit Fenster)",
@@ -70,7 +70,7 @@ const TRANSLATIONS = {
         reset: "Reset",
         dragHint: "Drag addresses to reposition",
         privacyNote:
-            "Privacy: No server storage. All data stays local in your browser.",
+            "Privacy: No server storage. \nAll data stays local in your browser.",
         formats: {
             "DIN A4 (Briefbogen)": "DIN A4 (Letterhead)",
             "DIN Lang (mit Fenster)": "DIN Lang (with Window)",
@@ -622,7 +622,7 @@ export default function App() {
 
     return (
         <div className="flex h-screen bg-slate-100 font-sans overflow-hidden relative">
-            <div className="w-[400px] bg-slate-50 flex flex-col h-full border-r border-slate-200 z-10 shadow-lg shrink-0">
+            <div className="w-[26rem] bg-slate-50 flex flex-col h-full border-r border-slate-200 z-10 shadow-lg shrink-0">
                 <div className="p-6 bg-white border-b border-slate-200 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="bg-blue-100 p-2 rounded-lg">
@@ -655,7 +655,7 @@ export default function App() {
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm transition-shadow hover:shadow-md">
                         <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
                             <Settings size={16} className="text-slate-400" />{" "}
                             {t.formatSettings}
@@ -699,7 +699,7 @@ export default function App() {
                             className="text-blue-500 shrink-0 mt-0.5"
                             size={16}
                         />
-                        <p className="text-[11px] leading-relaxed text-slate-500 italic">
+                        <p className="text-[12px] leading-relaxed text-slate-500 italic whitespace-pre-line">
                             {t.privacyNote}
                         </p>
                     </div>
