@@ -38,7 +38,7 @@ const TRANSLATIONS = {
         reset: "Reset",
         dragHint: "Adressen zum Verschieben ziehen",
         privacyNote:
-            "Datenschutz: Keine Server-Speicherung. \nDaten verbleiben lokal in Ihrem Browser.",
+            "Datenschutz: Keine Server-Speicherung.\nDaten verbleiben lokal in Ihrem Browser.",
         formats: {
             "DIN A4 (Briefbogen)": "DIN A4 (Briefbogen)",
             "DIN Lang (mit Fenster)": "DIN Lang (mit Fenster)",
@@ -70,7 +70,7 @@ const TRANSLATIONS = {
         reset: "Reset",
         dragHint: "Drag addresses to reposition",
         privacyNote:
-            "Privacy: No server storage. \nAll data stays local in your browser.",
+            "Privacy: No server storage.\nAll data stays local in your browser.",
         formats: {
             "DIN A4 (Briefbogen)": "DIN A4 (Letterhead)",
             "DIN Lang (mit Fenster)": "DIN Lang (with Window)",
@@ -94,7 +94,7 @@ const FORMATS = {
         height: 297,
         orientation: "portrait",
         window: { x: 20, y: 45, width: 90, height: 45 },
-        stamp: null, // Auf einem Briefbogen gibt es keine Briefmarke
+        stamp: null,
     },
     "DIN Lang (mit Fenster)": {
         width: 220,
@@ -401,9 +401,15 @@ const getPreviewFontFamily = (font) => {
 };
 
 export default function App() {
-    const [lang, setLang] = useState(
-        () => localStorage.getItem("envelopeLang") || "de",
-    );
+    const [lang, setLang] = useState(() => {
+        const savedLang = localStorage.getItem("envelopeLang");
+        if (savedLang) return savedLang;
+
+        const browserLang =
+            typeof window !== "undefined" &&
+            (navigator.language || navigator.userLanguage || "");
+        return browserLang.toLowerCase().startsWith("de") ? "de" : "en";
+    });
     const t = TRANSLATIONS[lang];
 
     const [zoom, setZoom] = useState(() => {
