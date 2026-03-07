@@ -40,6 +40,7 @@ const TRANSLATIONS = {
         privacyNote:
             "Datenschutz: Keine Server-Speicherung. Daten verbleiben lokal in Ihrem Browser.",
         formats: {
+            "DIN A4 (Briefbogen)": "DIN A4 (Briefbogen)",
             "DIN Lang (mit Fenster)": "DIN Lang (mit Fenster)",
             "DIN Lang (ohne Fenster)": "DIN Lang (ohne Fenster)",
             "C4 (mit Fenster)": "C4 (mit Fenster)",
@@ -71,6 +72,7 @@ const TRANSLATIONS = {
         privacyNote:
             "Privacy: No server storage. All data stays local in your browser.",
         formats: {
+            "DIN A4 (Briefbogen)": "DIN A4 (Letterhead)",
             "DIN Lang (mit Fenster)": "DIN Lang (with Window)",
             "DIN Lang (ohne Fenster)": "DIN Lang (no Window)",
             "C4 (mit Fenster)": "C4 (with Window)",
@@ -87,6 +89,13 @@ const TRANSLATIONS = {
 
 // Fest an Norm gekoppelte Maße und Ausrichtungen
 const FORMATS = {
+    "DIN A4 (Briefbogen)": {
+        width: 210,
+        height: 297,
+        orientation: "portrait",
+        window: { x: 20, y: 45, width: 90, height: 45 },
+        stamp: null, // Auf einem Briefbogen gibt es keine Briefmarke
+    },
     "DIN Lang (mit Fenster)": {
         width: 220,
         height: 110,
@@ -104,7 +113,7 @@ const FORMATS = {
     "C4 (mit Fenster)": {
         width: 229,
         height: 324,
-        orientation: "portrait", // C4 ist klassisches Hochformat
+        orientation: "portrait",
         window: { x: 20, y: 45, width: 90, height: 45 },
         stamp: { width: 74, height: 40 },
     },
@@ -480,7 +489,6 @@ export default function App() {
     const senderRef = useRef(null);
     const recipientRef = useRef(null);
 
-    // Dimensionen hängen nun fest am ausgewählten Format
     const currentDims = FORMATS[format];
 
     const isOutOfBounds = (data) => {
@@ -492,7 +500,6 @@ export default function App() {
         );
     };
 
-    // Stellt sicher, dass bei Format-Wechsel die Adressen nicht aus dem Bild fliegen
     useEffect(() => {
         const checkBounds = (prev) => {
             const newX = clampCoordinate(
@@ -766,21 +773,24 @@ export default function App() {
                         height: `${currentDims.height * zoom}px`,
                     }}
                 >
-                    <div
-                        className="absolute top-0 right-0 bg-red-50/50 border-l border-b border-dashed border-red-200 flex flex-col items-center justify-center text-red-300 pointer-events-none select-none"
-                        style={{
-                            width: `${currentDims.stamp.width * zoom}px`,
-                            height: `${currentDims.stamp.height * zoom}px`,
-                        }}
-                    >
-                        <Stamp size={zoom * 8} className="mb-1" />
-                        <span
-                            className="font-bold uppercase tracking-wider"
-                            style={{ fontSize: `${zoom * 3}px` }}
+                    {currentDims.stamp && (
+                        <div
+                            className="absolute top-0 right-0 bg-red-50/50 border-l border-b border-dashed border-red-200 flex flex-col items-center justify-center text-red-300 pointer-events-none select-none"
+                            style={{
+                                width: `${currentDims.stamp.width * zoom}px`,
+                                height: `${currentDims.stamp.height * zoom}px`,
+                            }}
                         >
-                            {t.frankZone}
-                        </span>
-                    </div>
+                            <Stamp size={zoom * 8} className="mb-1" />
+                            <span
+                                className="font-bold uppercase tracking-wider"
+                                style={{ fontSize: `${zoom * 3}px` }}
+                            >
+                                {t.frankZone}
+                            </span>
+                        </div>
+                    )}
+
                     {currentDims.window && (
                         <div
                             className="absolute bg-slate-100/30 border border-dashed border-slate-200 flex items-center justify-center text-slate-300 font-bold pointer-events-none select-none rounded-sm"
