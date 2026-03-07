@@ -1,6 +1,6 @@
 {
     "name": "envelope-generator",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "homepage": "https://lumiliaro.github.io/envelope-generator",
     "private": true,
     "type": "module",
