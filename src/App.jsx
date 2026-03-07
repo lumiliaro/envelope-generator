@@ -10,7 +10,7 @@ import {
     Plus,
     Printer,
     RotateCcw,
-    Settings, // Für den Drag-Hinweis
+    Settings,
     ShieldCheck,
     Stamp,
     Type,
@@ -23,9 +23,7 @@ const TRANSLATIONS = {
     de: {
         appTitle: "Briefumschlag Druck",
         appSubtitle: "PDF Generator & Designer",
-        formatOrientation: "Format & Ausrichtung",
-        landscape: "Querformat",
-        portrait: "Hochformat",
+        formatSettings: "Format-Auswahl",
         sender: "Absender",
         recipient: "Empfänger",
         placeholder:
@@ -38,12 +36,13 @@ const TRANSLATIONS = {
         windowZone: "Sichtfenster",
         returnLine: "Als Zeile über Empfänger",
         reset: "Reset",
-        dragHint: "Adressen zum Verschieben ziehen", // Neu hinzugefügt
+        dragHint: "Adressen zum Verschieben ziehen",
         privacyNote:
-            "Datenschutz: Keine Server-Speicherung. Daten verbleiben lokal in Ihrem Browser.", // Neu hinzugefügt
+            "Datenschutz: Keine Server-Speicherung. Daten verbleiben lokal in Ihrem Browser.",
         formats: {
             "DIN Lang (mit Fenster)": "DIN Lang (mit Fenster)",
             "DIN Lang (ohne Fenster)": "DIN Lang (ohne Fenster)",
+            "C4 (mit Fenster)": "C4 (mit Fenster)",
             "C4 (Großbrief)": "C4 (Großbrief)",
             "C5 (Kompaktbrief)": "C5 (Kompaktbrief)",
             "C6 (Standardbrief)": "C6 (Standardbrief)",
@@ -56,9 +55,7 @@ const TRANSLATIONS = {
     en: {
         appTitle: "Envelope Print",
         appSubtitle: "PDF Generator & Designer",
-        formatOrientation: "Format & Orientation",
-        landscape: "Landscape",
-        portrait: "Portrait",
+        formatSettings: "Format Selection",
         sender: "Sender",
         recipient: "Recipient",
         placeholder: "John Doe\n123 Main Street\nNew York, NY 10001\nUSA",
@@ -70,12 +67,13 @@ const TRANSLATIONS = {
         windowZone: "Window",
         returnLine: "As line above recipient",
         reset: "Reset",
-        dragHint: "Drag addresses to reposition", // Neu hinzugefügt
+        dragHint: "Drag addresses to reposition",
         privacyNote:
-            "Privacy: No server storage. All data stays local in your browser.", // Neu hinzugefügt
+            "Privacy: No server storage. All data stays local in your browser.",
         formats: {
             "DIN Lang (mit Fenster)": "DIN Lang (with Window)",
             "DIN Lang (ohne Fenster)": "DIN Lang (no Window)",
+            "C4 (mit Fenster)": "C4 (with Window)",
             "C4 (Großbrief)": "C4 (Large Envelope)",
             "C5 (Kompaktbrief)": "C5 (Compact)",
             "C6 (Standardbrief)": "C6 (Standard)",
@@ -87,58 +85,75 @@ const TRANSLATIONS = {
     },
 };
 
+// Fest an Norm gekoppelte Maße und Ausrichtungen
 const FORMATS = {
     "DIN Lang (mit Fenster)": {
         width: 220,
         height: 110,
+        orientation: "landscape",
         window: { x: 20, y: 45, width: 90, height: 45 },
         stamp: { width: 74, height: 40 },
     },
     "DIN Lang (ohne Fenster)": {
         width: 220,
         height: 110,
+        orientation: "landscape",
         window: null,
         stamp: { width: 74, height: 40 },
     },
+    "C4 (mit Fenster)": {
+        width: 229,
+        height: 324,
+        orientation: "portrait", // C4 ist klassisches Hochformat
+        window: { x: 20, y: 45, width: 90, height: 45 },
+        stamp: { width: 74, height: 40 },
+    },
     "C4 (Großbrief)": {
-        width: 324,
-        height: 229,
+        width: 229,
+        height: 324,
+        orientation: "portrait",
         window: null,
         stamp: { width: 74, height: 40 },
     },
     "C5 (Kompaktbrief)": {
         width: 229,
         height: 162,
+        orientation: "landscape",
         window: null,
         stamp: { width: 74, height: 40 },
     },
     "C6 (Standardbrief)": {
         width: 162,
         height: 114,
+        orientation: "landscape",
         window: null,
         stamp: { width: 74, height: 40 },
     },
     "B4 (Großformat)": {
-        width: 353,
-        height: 250,
+        width: 250,
+        height: 353,
+        orientation: "portrait",
         window: null,
         stamp: { width: 74, height: 40 },
     },
     "B5 (Zwischenformat)": {
         width: 250,
         height: 176,
+        orientation: "landscape",
         window: null,
         stamp: { width: 74, height: 40 },
     },
     "Quadratisch (155 x 155)": {
         width: 155,
         height: 155,
+        orientation: "portrait",
         window: null,
         stamp: { width: 74, height: 40 },
     },
     "Quadratisch Groß (220 x 220)": {
         width: 220,
         height: 220,
+        orientation: "portrait",
         window: null,
         stamp: { width: 74, height: 40 },
     },
@@ -146,7 +161,6 @@ const FORMATS = {
 
 const PT_TO_MM = 25.4 / 72;
 
-// Schätzt ab, wie viel Platz der Text auf dem Umschlag verbraucht, und drückt ihn bei Bedarf zurück
 const clampCoordinate = (val, text, fontSize, maxW, maxH, isX) => {
     if (val === "" || val === null || val === undefined) return "";
     let num = Number(val);
@@ -388,7 +402,7 @@ export default function App() {
         return savedZoom ? Number(savedZoom) : 3;
     });
 
-    const [showDragHint, setShowDragHint] = useState(true); // Neu: State für Hinweis
+    const [showDragHint, setShowDragHint] = useState(true);
 
     const [format, setFormat] = useState(() => {
         const savedFormat = localStorage.getItem("envelopeFormat");
@@ -396,11 +410,6 @@ export default function App() {
             ? JSON.parse(savedFormat)
             : "DIN Lang (ohne Fenster)";
         return FORMATS[parsed] ? parsed : "DIN Lang (ohne Fenster)";
-    });
-
-    const [isLandscape, setIsLandscape] = useState(() => {
-        const saved = localStorage.getItem("envelopeOrientation");
-        return saved !== null ? JSON.parse(saved) : true;
     });
 
     const [sender, setSender] = useState(() => {
@@ -444,7 +453,6 @@ export default function App() {
         };
     });
 
-    // Neu: Hinweis nach 5 Sekunden ausblenden
     useEffect(() => {
         const timer = setTimeout(() => setShowDragHint(false), 5000);
         return () => clearTimeout(timer);
@@ -455,14 +463,6 @@ export default function App() {
     useEffect(
         () => localStorage.setItem("envelopeFormat", JSON.stringify(format)),
         [format],
-    );
-    useEffect(
-        () =>
-            localStorage.setItem(
-                "envelopeOrientation",
-                JSON.stringify(isLandscape),
-            ),
-        [isLandscape],
     );
     useEffect(
         () => localStorage.setItem("envelopeSender", JSON.stringify(sender)),
@@ -480,26 +480,19 @@ export default function App() {
     const senderRef = useRef(null);
     const recipientRef = useRef(null);
 
-    const baseDims = FORMATS[format];
-    const currentDims = {
-        ...baseDims,
-        width: isLandscape ? baseDims.width : baseDims.height,
-        height: isLandscape ? baseDims.height : baseDims.width,
-        window: baseDims.window
-            ? {
-                  x: isLandscape ? baseDims.window.x : baseDims.window.y,
-                  y: isLandscape ? baseDims.window.y : baseDims.window.x,
-                  width: isLandscape
-                      ? baseDims.window.width
-                      : baseDims.window.height,
-                  height: isLandscape
-                      ? baseDims.window.height
-                      : baseDims.window.width,
-              }
-            : null,
-        stamp: baseDims.stamp,
+    // Dimensionen hängen nun fest am ausgewählten Format
+    const currentDims = FORMATS[format];
+
+    const isOutOfBounds = (data) => {
+        return (
+            data.x <= 0 ||
+            data.y <= 0 ||
+            data.x >= currentDims.width - 5 ||
+            data.y >= currentDims.height - 5
+        );
     };
 
+    // Stellt sicher, dass bei Format-Wechsel die Adressen nicht aus dem Bild fliegen
     useEffect(() => {
         const checkBounds = (prev) => {
             const newX = clampCoordinate(
@@ -553,7 +546,7 @@ export default function App() {
     };
 
     const handleDragStop = (e, data, setter) => {
-        setShowDragHint(false); // Neu: Blendet den Hinweis bei der ersten Interaktion aus
+        setShowDragHint(false);
         setter((prev) => ({
             ...prev,
             x: Math.round(data.x / zoom),
@@ -569,10 +562,11 @@ export default function App() {
 
     const createPDF = () => {
         const doc = new jsPDF({
-            orientation: isLandscape ? "landscape" : "portrait",
+            orientation: currentDims.orientation,
             unit: "mm",
-            format: [baseDims.width, baseDims.height],
+            format: [currentDims.width, currentDims.height],
         });
+
         if (sender.text && !sender.useAsReturnLine) {
             doc.setFontSize(sender.fontSize);
             doc.setFont(
@@ -657,12 +651,12 @@ export default function App() {
                     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                         <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
                             <Settings size={16} className="text-slate-400" />{" "}
-                            {t.formatOrientation}
+                            {t.formatSettings}
                         </label>
                         <select
                             value={format}
                             onChange={(e) => setFormat(e.target.value)}
-                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer mb-3"
+                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer"
                         >
                             {Object.keys(FORMATS).map((key) => (
                                 <option key={key} value={key}>
@@ -671,20 +665,6 @@ export default function App() {
                                 </option>
                             ))}
                         </select>
-                        <div className="flex bg-slate-100 p-1 rounded-lg">
-                            <button
-                                onClick={() => setIsLandscape(true)}
-                                className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${isLandscape ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700"}`}
-                            >
-                                {t.landscape}
-                            </button>
-                            <button
-                                onClick={() => setIsLandscape(false)}
-                                className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${!isLandscape ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700"}`}
-                            >
-                                {t.portrait}
-                            </button>
-                        </div>
                     </div>
                     <AddressCard
                         title={t.sender}
@@ -707,7 +687,6 @@ export default function App() {
                         isSender={false}
                     />
 
-                    {/* NEU: Datenschutz-Hinweis in der Seitenleiste */}
                     <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl flex gap-3 items-start">
                         <ShieldCheck
                             className="text-blue-500 shrink-0 mt-0.5"
@@ -747,7 +726,6 @@ export default function App() {
             </div>
 
             <div className="flex-1 bg-grid-pattern overflow-auto relative flex items-center justify-center p-12">
-                {/* NEU: Pulsierender Hinweis */}
                 {showDragHint && (
                     <div className="absolute top-10 left-1/2 -translate-x-1/2 z-[60] animate-bounce pointer-events-none">
                         <div className="bg-blue-600 text-white px-4 py-2 rounded-full shadow-2xl flex items-center gap-2 text-sm font-bold border-2 border-white/50">
@@ -830,10 +808,9 @@ export default function App() {
                                 handleDragStop(e, data, setSender)
                             }
                         >
-                            {/* NEU: Cursor-Klassen hinzugefügt (cursor-grab active:cursor-grabbing) */}
                             <div
                                 ref={senderRef}
-                                className="absolute cursor-grab active:cursor-grabbing text-slate-600 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 rounded z-10 shadow-sm"
+                                className={`absolute cursor-grab active:cursor-grabbing text-slate-600 whitespace-pre-wrap leading-snug p-1 border-2 rounded z-10 transition-colors ${isOutOfBounds(sender) ? "border-red-500 bg-red-50/30" : "border-transparent hover:border-blue-400 hover:bg-blue-50/50 shadow-sm"}`}
                                 style={{
                                     fontSize: `${sender.fontSize * PT_TO_MM * zoom}px`,
                                     fontWeight: sender.isBold
@@ -863,10 +840,9 @@ export default function App() {
                             handleDragStop(e, data, setRecipient)
                         }
                     >
-                        {/* NEU: Cursor-Klassen hinzugefügt (cursor-grab active:cursor-grabbing) */}
                         <div
                             ref={recipientRef}
-                            className="absolute cursor-grab active:cursor-grabbing text-slate-900 whitespace-pre-wrap leading-snug p-1 border border-transparent hover:border-blue-400 hover:bg-blue-50/50 rounded z-10 shadow-sm"
+                            className={`absolute cursor-grab active:cursor-grabbing text-slate-900 whitespace-pre-wrap leading-snug p-1 border-2 rounded z-10 transition-colors ${isOutOfBounds(recipient) ? "border-red-500 bg-red-50/30" : "border-transparent hover:border-blue-400 hover:bg-blue-50/50 shadow-sm"}`}
                             style={{
                                 fontWeight: recipient.isBold
                                     ? "bold"
